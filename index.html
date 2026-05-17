@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="./src/Calculator Icon.png">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <title>Web Browser</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 上方地址列 */
+        #address-bar-container {
+            display: flex;
+            padding: 0 8px;
+            background-color: #000000;
+            /* border-bottom: 1px solid #333333; */
+            gap: 6px;
+            align-items: stretch;
+            min-height: 48px;
+        }
+        #toggle-sidebar,
+        #toggle-sidebar-right {
+            padding: 0;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            border-radius: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 4px 0 0;
+            font-size: 0;
+            color: transparent;
+            align-self: center;
+        }
+        #toggle-sidebar-right {
+            margin-left: 4px;
+        }
+        #toggle-sidebar::before,
+        #toggle-sidebar-right::before {
+            content: "";
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: #ffffff;
+            box-shadow: -6px 0 0 0 #ffffff, 6px 0 0 0 #ffffff;
+        }
+        #home-button,
+        #reload-button {
+            padding: 0 8px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            margin-right: 4px;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0;
+        }
+        #home-button:hover:not(:disabled),
+        #reload-button:hover:not(:disabled),
+        #nav-back:hover:not(:disabled),
+        #nav-forward:hover:not(:disabled) {
+            background-color: #151515;
+        }
+        #home-button .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 1,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 32;
+            font-size: 22px;
+        }
+        #reload-button .material-symbols-sharp {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 48;
+            font-size: 22px;
+        }
+        #nav-back, #nav-forward {
+            padding: 0 8px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0;
+        }
+        #nav-back:disabled, #nav-forward:disabled {
+            color: #888888;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        #nav-back .material-symbols-outlined,
+        #nav-forward .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 1,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 32;
+            font-size: 20px;
+        }
+        /* 上一頁 / 下一頁 預覽卡片 */
+        #nav-preview {
+            position: fixed;
+            z-index: 9999;
+            display: none;
+            width: 220px;
+            background: #ffffff;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+            padding: 6px;
+        }
+        #nav-preview.visible {
+            display: block;
+        }
+        #nav-preview-image {
+            width: 100%;
+            height: 130px;
+            object-fit: cover;
+            border-radius: 4px;
+            background: #f5f5f5;
+        }
+        #nav-preview-title {
+            margin-top: 4px;
+            font-size: 12px;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #address-input {
+            flex-grow: 1;
+            padding: 6px 10px;
+            border: 1px solid #444444;
+            border-radius: 0;
+            background-color: #ffffff;
+            color: #000000;
+            height: 32px;
+            box-sizing: border-box;
+            align-self: center;
+        }
+        /* 階層位址欄（預設隱藏，必要時顯示） */
+        #breadcrumb-bar-container {
+            display: none;
+            padding: 0 8px 8px 8px;
+            background-color: #000000;
+            border-bottom: 1px solid #ccc;
+        }
+        #breadcrumb-bar-container.visible {
+            display: block;
+        }
+        #page-breadcrumb {
+            border: 1px solid #ccc;
+            border-radius: 0;
+            background: #fff;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 0 6px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            white-space: nowrap;
+            scrollbar-gutter: stable both-edges;
+        }
+        /* 讓水平滾動條很細（Chromium / Electron） */
+        #page-breadcrumb::-webkit-scrollbar {
+            height: 6px;
+        }
+        #page-breadcrumb::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        #page-breadcrumb::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 999px;
+        }
+        #page-breadcrumb::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 0, 0, 0.35);
+        }
+        .breadcrumb-item {
+            max-width: 180px;
+            border: 1px solid #b7cdfa;
+            background: #e0eaff;
+            border-radius: 0;
+            padding: 3px 8px;
+            cursor: pointer;
+            font-size: 12px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .breadcrumb-item:hover {
+            background: #d4e0ff;
+        }
+        .breadcrumb-item.active {
+            background: #e0eaff;
+            border-color: #b7cdfa;
+            border-radius: 0;
+        }
+        #go-button {
+            padding: 0;
+            cursor: pointer;
+            background-color: transparent;
+            color: #ffffff;
+            border: 2px solid #ffffff;
+            border-radius: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            box-sizing: border-box;
+            align-self: center;
+        }
+        #go-button:hover {
+            background-color: #151515;
+        }
+        #go-button .material-symbols-sharp {
+            font-variation-settings:
+            'FILL' 1,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 48;
+        }
+
+        /* 下方主區域：左邊側欄 + 右邊 webview */
+        #browser-content {
+            flex-grow: 1;
+            display: flex;
+            min-height: 0;
+        }
+        /* 側邊欄在右側時的布局 */
+        #browser-content.sidebar-right {
+            flex-direction: row-reverse;
+        }
+
+        /* 側邊欄（可縮放 + 動畫） */
+        #sidebar {
+            width: 220px;
+            background: #f8f8f8;
+            border-right: 1px solid #000000;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+            transition: width 0.25s ease;
+        }
+        /* 側邊欄在右側時的邊框 */
+        #browser-content.sidebar-right #sidebar {
+            border-right: none;
+            border-left: 1px solid #000000;
+        }
+        #browser-content.sidebar-collapsed #sidebar {
+            width: 0 !important;
+            min-width: 0 !important;
+        }
+        #browser-content.sidebar-collapsed #sidebar-resizer {
+            display: none;
+        }
+        /* 側邊欄調整器 */
+        #sidebar-resizer {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 6px;
+            height: 100%;
+            cursor: col-resize;
+            background: #000000;
+            z-index: 10;
+        }
+        /* 側邊欄在右側時，調整器在左側 */
+        #browser-content.sidebar-right #sidebar-resizer {
+            right: auto;
+            left: 0;
+        }
+        #sidebar-resizer:hover {
+            background: #000000;
+        }
+        #sidebar-resizer.resizing {
+            background: #000000;
+        }
+
+        #tabs-header {
+            display: flex;
+            align-items: stretch;
+            padding: 0 8px;
+            border-bottom: 8px solid #000000;
+            font-size: 14px;
+            background-color: #1f1f1f;
+            min-height: 44px;
+        }
+
+        #add-tab-container {
+            display: flex;
+            justify-content: flex-start;
+            align-items: stretch;
+            padding: 0 8px;
+            border-bottom: 8px solid #000000;
+            background-color: #1f1f1f;
+        }
+        #add-tab-container button {
+            border: none;
+        }
+
+        /* 分頁 / 歷史 切換按鈕 */
+        #sidebar-mode-switch {
+            display: flex;
+            align-items: stretch;
+            gap: 0;
+            flex: 1;
+            min-width: 0;
+            background-color: #1f1f1f;
+        }
+        .sidebar-mode-btn {
+            padding: 0 10px;
+            border: none;
+            background: transparent;
+            border-radius: 0;
+            cursor: pointer;
+            font-size: 12px;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #tabs-header .sidebar-mode-btn .material-symbols-sharp,
+        #tabs-header .sidebar-mode-btn .material-symbols-outlined {
+            color: #ffffff;
+        }
+        #tabs-header .sidebar-mode-btn:hover {
+            background: #2a2a2a;
+        }
+        .sidebar-mode-btn.active {
+            background: transparent;
+            color: #ffffff;
+        }
+        #tabs-header .sidebar-mode-btn.active .material-symbols-sharp,
+        #tabs-header .sidebar-mode-btn.active .material-symbols-outlined {
+            color: #007bff;
+        }
+        #tabs-header .sidebar-mode-btn:active .material-symbols-sharp,
+        #tabs-header .sidebar-mode-btn:active .material-symbols-outlined {
+            color: #007bff;
+        }
+        #sidebar-mode-tabs .material-symbols-sharp,
+        #sidebar-mode-clipboard .material-symbols-sharp {
+            font-variation-settings:
+            'FILL' 1,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 48;
+        }
+
+        #add-tab {
+            padding: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            border-radius: 0;
+            background: #1f1f1f;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #add-tab .material-symbols-sharp {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 48;
+            color: #ffffff;
+        }
+
+        #toggle-thumbnail-view {
+            padding: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            border-radius: 0;
+            background: #1f1f1f;
+            margin-left: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #toggle-thumbnail-view .material-symbols-sharp {
+            font-variation-settings:
+            'FILL' 1,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 48;
+            color: #ffffff;
+        }
+
+        #toggle-thumbnail-view:hover {
+            background: #2a2a2a;
+        }
+        #add-tab:hover {
+            background: #2a2a2a;
+        }
+
+        /* 分頁列表 */
+        #tabs-list {
+            list-style: none;
+            margin: 0;
+            padding: 4px 0;
+            flex-grow: 1;
+            overflow-y: auto;
+            background-color: #1f1f1f;
+        }
+        .tab-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 8px;
+            font-size: 13px;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .tab-item:hover {
+            background: #666666;
+        }
+        .tab-item.active {
+            background: #666666;
+        }
+        /* 缩图模式 */
+        #tabs-list.thumbnail-mode .tab-item {
+            flex-direction: column;
+            align-items: stretch;
+            padding: 8px;
+            white-space: normal;
+            position: relative;
+        }
+        #tabs-list.thumbnail-mode .tab-item-header {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 10;
+        }
+        #tabs-list.thumbnail-mode .tab-thumbnail {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            object-fit: cover;
+            /* border-radius: 4px; */
+            margin-bottom: 4px;
+            background: #f0f0f0;
+        }
+        #tabs-list.thumbnail-mode .tab-title {
+            font-size: 12px;
+            text-align: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #ffffff;
+        }
+        #tabs-list.thumbnail-mode .tab-favicon {
+            display: none;
+        }
+
+        /* 強制 pin-tab 和 close-tab 在一般模式下顯示 */
+        #tabs-list:not(.thumbnail-mode) .tab-item .pin-tab,
+        #tabs-list:not(.thumbnail-mode) .tab-item .close-tab {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        #tabs-list.thumbnail-mode .close-tab {
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            padding: 0;
+        }
+        #tabs-list.thumbnail-mode .close-tab:hover {
+            background: rgba(0, 0, 0, 0.7);
+        }
+        #tabs-list.thumbnail-mode .pin-tab {
+            border: none;
+            background: rgba(0, 0, 0, 0.4);
+            cursor: pointer;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            color: #fff;
+        }
+        #tabs-list.thumbnail-mode .pin-tab:hover {
+            background: rgba(0, 0, 0, 0.7);
+        }
+        .tab-favicon {
+            width: 16px;
+            height: 16px;
+            margin-right: 6px;
+            flex-shrink: 0;
+            object-fit: contain;
+        }
+        .tab-favicon-icon {
+            width: 16px;
+            height: 16px;
+            margin-right: 6px;
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            font-size: 16px;
+            position: relative;
+            top: -4px;
+            left: -2px;
+        }
+        .tab-title {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #ffffff;
+        }
+        .close-tab {
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            padding: 4px;
+            font-size: 14px;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s ease;
+            color: #666;
+        }
+        .close-tab:hover {
+            background-color: #333;
+            color: white;
+        }
+        .close-tab:active {
+            background-color: #000;
+        }
+        .pin-tab {
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            padding: 4px;
+            font-size: 14px;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s ease;
+            color: #666;
+        }
+        .pin-tab:hover {
+            background-color: #333;
+            color: white;
+        }
+        .pin-tab:active {
+            background-color: #000;
+        }
+
+        /* 歷史列表（整體約為原尺寸的 80%） */
+        #history-list {
+            list-style: none;
+            margin: 0;
+            padding: 3px 0;
+            flex-grow: 1;
+            overflow-y: auto;
+            display: none; /* 預設顯示分頁，隱藏歷史 */
+        }
+        /* 複製暫存列表 */
+        #clipboard-list {
+            list-style: none;
+            margin: 0;
+            padding: 4px 0;
+            flex-grow: 1;
+            overflow-y: auto;
+            display: none; /* 預設隱藏 */
+        }
+        .clipboard-item {
+            padding: 8px;
+            margin: 4px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        .clipboard-item-icon {
+            font-size: 20px;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: #666;
+            font-variation-settings:
+                'FILL' 0,
+                'wght' 300,
+                'GRAD' 0,
+                'opsz' 48;
+        }
+        .clipboard-item-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .clipboard-item:hover {
+            background: #e8e8e8;
+        }
+        .clipboard-item-text {
+            font-size: 13px;
+            color: #333;
+            word-wrap: break-word;
+            max-height: 60px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .clipboard-item-url {
+            font-size: 12px;
+            color: #666;
+            word-wrap: break-word;
+            margin-top: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+        .clipboard-item-thumbnail {
+            width: 100%;
+            max-height: 150px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-top: 4px;
+        }
+        .clipboard-item-image, .clipboard-item-video {
+            width: 100%;
+            max-height: 200px;
+            object-fit: contain;
+            border-radius: 4px;
+            margin-top: 4px;
+        }
+        .history-item {
+            display: flex;
+            flex-direction: column;
+            padding: 6px;
+            font-size: 10px;
+            cursor: pointer;
+            gap: 3px;
+        }
+        .history-item:hover {
+            background: #f0f0f0;
+        }
+        .history-content {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .history-favicon {
+            width: 13px;
+            height: 13px;
+            flex-shrink: 0;
+            object-fit: contain;
+        }
+        .history-title {
+            font-size: 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+        }
+        .history-delete-btn {
+            flex-shrink: 0;
+            width: 16px;
+            height: 16px;
+            padding: 0;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 3px;
+            opacity: 0;
+            transition: opacity 0.2s, background-color 0.2s;
+        }
+        .history-item:hover .history-delete-btn {
+            opacity: 1;
+        }
+        .history-delete-btn:hover {
+            background-color: #e0e0e0;
+        }
+        .history-delete-btn .material-symbols-sharp {
+            font-size: 13px;
+            color: #666;
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 48;
+        }
+        .history-delete-btn:hover .material-symbols-sharp {
+            color: #333;
+        }
+        .history-time {
+            font-size: 9px;
+            color: #666;
+            margin-top: 2px;
+        }
+        .history-url {
+            font-size: 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* webview 容器 */
+        #webview-container {
+            flex-grow: 1;
+            position: relative;
+        }
+        webview {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .material-symbols-outlined {
+            font-family: 'Material Symbols Outlined';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            font-feature-settings: 'liga';
+            -webkit-font-feature-settings: 'liga';
+            -webkit-font-smoothing: antialiased;
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 200,
+            'GRAD' 0,
+            'opsz' 24
+        }
+        .material-symbols-sharp {
+            font-family: 'Material Symbols Sharp';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            font-feature-settings: 'liga';
+            -webkit-font-feature-settings: 'liga';
+            -webkit-font-smoothing: antialiased;
+            font-variation-settings:
+            'FILL' 1,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 48;
+        }
+        #sidebar-mode-history .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 48
+        }
+        #sidebar-mode-clipboard .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 300,
+            'GRAD' 0,
+            'opsz' 48
+        }
+
+        /* 下載 / 設定 / 個人中心 按鈕（與 Go 按鈕同風格：方形邊框） */
+        #downloads-button,
+        #settings-button,
+        #personal-center-button {
+            margin-left: 3px;
+            padding: 0;
+            cursor: pointer;
+            background-color: transparent;
+            color: #ffffff;
+            border: 2px solid #ffffff;
+            border-radius: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            box-sizing: border-box;
+            align-self: center;
+        }
+        #downloads-button:hover,
+        #settings-button:hover,
+        #personal-center-button:hover {
+            background-color: #151515;
+        }
+        #personal-center-button .material-symbols-sharp {
+            font-variation-settings:
+                'FILL' 1,
+                'wght' 300,
+                'GRAD' 0,
+                'opsz' 48;
+            font-size: 22px;
+        }
+
+        /* 右键菜单 */
+        #context-menu {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 10000;
+            min-width: 200px;
+            padding: 8px 0;
+        }
+        #context-menu.show {
+            display: block;
+        }
+        .context-menu-item {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            padding: 10px 20px;
+            text-align: left;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+            gap: 12px;
+        }
+        .context-menu-item .material-symbols-outlined {
+            font-size: 20px;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-variation-settings:
+                'FILL' 0,
+                'wght' 300,
+                'GRAD' 0,
+                'opsz' 48;
+        }
+        .context-menu-item:hover:not(.disabled) {
+            background-color: #f0f0f0;
+        }
+        .context-menu-item.disabled {
+            color: #999;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        .context-menu-divider {
+            height: 1px;
+            background: #e0e0e0;
+            margin: 4px 0;
+        }
+
+        /* 下載頁面（覆蓋層） */
+        #downloads-panel {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.98);
+            z-index: 9000;
+            display: none;
+            flex-direction: column;
+        }
+        #downloads-panel.visible {
+            display: flex;
+        }
+        #downloads-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            border-bottom: 1px solid #ddd;
+        }
+        #downloads-panel-title {
+            font-size: 14px;
+            font-weight: bold;
+        }
+        #downloads-panel-close {
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 4px 8px;
+        }
+        #downloads-panel-body {
+            padding: 8px 12px;
+            overflow-y: auto;
+        }
+        #downloads-ask-location-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+        #downloads-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        .download-item {
+            padding: 6px 8px;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+        .download-item-name {
+            font-weight: 500;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .download-item-progress-bar {
+            width: 100%;
+            height: 6px;
+            margin: 4px 0;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        .download-item-progress-bar::-webkit-progress-bar {
+            background-color: #e0e0e0;
+            border-radius: 3px;
+        }
+        .download-item-progress-bar::-webkit-progress-value {
+            background-color: #007bff;
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+        .download-item-progress {
+            font-size: 11px;
+            color: #666;
+            margin-top: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div id="address-bar-container">
+        <button id="toggle-sidebar">☰</button>
+        <button id="home-button">
+            <span class="material-symbols-outlined">home</span>
+        </button>
+        <button id="reload-button" title="重新載入">
+            <span class="material-symbols-sharp">refresh</span>
+        </button>
+        <button id="nav-back">
+            <span class="material-symbols-outlined">arrow_back_ios</span>
+        </button>
+        <button id="nav-forward">
+            <span class="material-symbols-outlined">arrow_forward_ios</span>
+        </button>
+
+        <input type="text" id="address-input" value="" placeholder="輸入網址或 AI 指令">
+        <button id="go-button">
+            <span class="material-symbols-sharp">send</span>
+        </button>
+        <button id="downloads-button" title="下載">
+            <span class="material-symbols-sharp">download</span>
+        </button>
+        <button id="settings-button" title="設定">
+            <span class="material-symbols-sharp">settings</span>
+        </button>
+        <button id="personal-center-button" type="button" title="個人中心">
+            <span id="personal-center-icon" class="material-symbols-sharp">account_circle</span>
+        </button>
+        <button id="toggle-sidebar-right" style="display: none;">☰</button>
+    </div>
+
+    <!-- 上一頁 / 下一頁 預覽 -->
+    <div id="nav-preview">
+        <img id="nav-preview-image" alt="">
+        <div id="nav-preview-title"></div>
+    </div>
+
+    <div id="breadcrumb-bar-container">
+        <div id="page-breadcrumb"></div>
+    </div>
+
+    <div id="browser-content">
+        <!-- 左邊：側邊欄（分頁 / 歷史） -->
+        <div id="sidebar">
+            <div id="tabs-header">
+                <div id="sidebar-mode-switch">
+                    <button id="sidebar-mode-tabs" class="sidebar-mode-btn active"><span class="material-symbols-sharp">select_window</span></button>
+                    <button id="sidebar-mode-history" class="sidebar-mode-btn"><span class="material-symbols-outlined">history</span></button>
+                    <button id="sidebar-mode-clipboard" class="sidebar-mode-btn"><span class="material-symbols-sharp">content_paste</span></button>
+                </div>
+                </div>
+            <div id="add-tab-container">
+                <button id="add-tab">
+                    <span class="material-symbols-sharp">add_2</span>
+                </button>
+                <button id="toggle-thumbnail-view" title="切換縮圖檢視">
+                    <span class="material-symbols-sharp">grid_view</span>
+                </button>
+            </div>
+
+            <ul id="tabs-list"></ul>
+            <ul id="history-list"></ul>
+            <ul id="clipboard-list"></ul>
+            <div id="sidebar-resizer"></div>
+        </div>
+
+        <!-- 右邊：主 webview 區 -->
+        <div id="webview-container">
+            <webview id="webview-main"
+                     src="./src/home.html"
+                     preload="./src/preload-home.js"
+                     allowpopups="false"
+                     webpreferences="allowRunningInsecureContent=true,nodeIntegration=false">
+            </webview>
+
+            <!-- 下載頁面覆蓋層 -->
+            <div id="downloads-panel">
+                <div id="downloads-panel-header">
+                    <div id="downloads-panel-title">下載</div>
+                    <button id="downloads-panel-close">✕</button>
+                </div>
+                <div id="downloads-panel-body">
+                    <div id="downloads-ask-location-row">
+                        <input type="checkbox" id="downloads-ask-location-toggle">
+                        <label for="downloads-ask-location-toggle">下載前詢問儲存位置（否則使用預設下載資料夾）</label>
+                    </div>
+                    <ul id="downloads-list"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右键菜单 -->
+    <div id="context-menu">
+        <button class="context-menu-item" id="context-menu-back">
+            <span class="material-symbols-outlined">arrow_back</span>
+            <span>上一頁</span>
+        </button>
+        <div class="context-menu-divider"></div>
+        <button class="context-menu-item" id="context-menu-copy">
+            <span class="material-symbols-outlined">content_copy</span>
+            <span>複製</span>
+        </button>
+        <button class="context-menu-item" id="context-menu-paste">
+            <span class="material-symbols-outlined">content_paste</span>
+            <span>貼上</span>
+        </button>
+        <button class="context-menu-item" id="context-menu-search">
+            <span class="material-symbols-outlined">tab_search</span>
+            <span>搜尋與開啟</span>
+        </button>
+        <div class="context-menu-divider"></div>
+        <button class="context-menu-item" id="context-menu-incognito">
+            <span class="material-symbols-outlined" id="context-menu-incognito-icon">visibility_off</span>
+            <span id="context-menu-incognito-text">開啟與關閉無痕模式</span>
+        </button>
+    </div>
+
+    <script src="./renderer.js"></script>
+</body>
+</html>

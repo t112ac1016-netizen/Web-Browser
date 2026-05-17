@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Settings</title>
+    <style>
+        body {
+            padding: 20px;
+            font-family: sans-serif;
+        }
+        select {
+            padding: 6px;
+            font-size: 16px;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section h2 {
+            margin-top: 0;
+        }
+        #site-list {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0;
+        }
+        .site-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            margin-bottom: 8px;
+            background: #f5f5f5;
+            border-radius: 4px;
+        }
+        .site-item input {
+            flex-grow: 1;
+            padding: 6px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .site-item button {
+            padding: 6px 12px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .site-item button:hover {
+            background: #c82333;
+        }
+        #add-site-btn {
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        #add-site-btn:hover {
+            background: #0056b3;
+        }
+        #new-site-input {
+            padding: 6px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-right: 8px;
+            width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div class="section">
+    <h2>搜尋引擎設定</h2>
+    <label>預設搜尋引擎：</label>
+    <select id="engine-select">
+        <option value="google">Google</option>
+        <option value="bing">Bing</option>
+        <option value="duck">DuckDuckGo</option>
+    </select>
+    </div>
+
+    <div class="section">
+        <h2>網站搜尋清單</h2>
+        <p>新增網址（如 wikipedia.org），搜尋時會顯示這些網站的快速搜尋按鈕</p>
+        <ul id="site-list"></ul>
+        <div>
+            <input type="text" id="new-site-input" placeholder="輸入網址，如 wikipedia.org" />
+            <button id="add-site-btn">新增</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>側邊欄設定</h2>
+        <label>側邊欄位置：</label>
+        <select id="sidebar-position-select">
+            <option value="left">左側</option>
+            <option value="right">右側</option>
+        </select>
+    </div>
+
+    <script src="./settings.js"></script>
+</body>
+</html>

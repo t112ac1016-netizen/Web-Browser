@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=search" />
+    <title>Home</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 40px;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            background-color: #1f1f1f;
+        }
+        #search-container {
+            width: 60%;
+            max-width: 500px;
+            display: flex;
+            align-items: center;
+            gap: 0;
+        }
+        #search-box {
+            flex-grow: 1;
+            padding: 10px;
+            font-size: 18px;
+            border: 1px solid #ccc;
+            border-radius: 0;
+            border-right: none;
+        }
+        .material-symbols-outlined {
+            font-family: 'Material Symbols Outlined';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            font-feature-settings: 'liga';
+            -webkit-font-feature-settings: 'liga';
+            -webkit-font-smoothing: antialiased;
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 200,
+            'GRAD' 0,
+            'opsz' 24
+        }
+        .material-symbols-sharp {
+            font-family: 'Material Symbols Sharp';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            font-feature-settings: 'liga';
+            -webkit-font-feature-settings: 'liga';
+            -webkit-font-smoothing: antialiased;
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 48;
+        }
+        #search-btn {
+            padding: 8.5px 12px;
+            font-size: 18px;
+            border: 1px solid #ccc;
+            border-left: none;
+            border-right: none;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #search-btn:hover {
+            background: #f0f0f0;
+        }
+        #engine-dropdown-container {
+            position: relative;
+        }
+        #engine-dropdown-btn {
+            padding: 12.5px 12px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 0;
+            background: white;
+            cursor: pointer;
+            min-width: 80px;
+        }
+        #engine-dropdown-btn:hover {
+            background: #f0f0f0;
+        }
+        #engine-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 4px;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            display: none;
+            z-index: 1000;
+            min-width: 120px;
+        }
+        #engine-dropdown-menu.show {
+            display: block;
+        }
+        .engine-option {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .engine-option:hover {
+            background: #f0f0f0;
+        }
+        .engine-option.active {
+            background: #e0eaff;
+            font-weight: bold;
+        }
+        #site-buttons-container {
+            margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            max-width: 500px;
+        }
+        .site-button {
+            padding: 6px 12px;
+            font-size: 14px;
+            background: #f0f0f0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .site-button:hover {
+            background: #e0e0e0;
+        }
+        #pinned-search-container {
+            margin-top: 40px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+            max-width: 800px;
+            width: 100%;
+        }
+        #pinned-buttons-container {
+            margin-top: 40px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+            max-width: 800px;
+            width: 100%;
+        }
+        .pinned-button,
+        .pinned-search-button {
+            font-size: 16px;
+            background: #3579f6;
+            border: none;
+            border-radius: 0;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+            color: #ffffff;
+            text-align: left;
+            position: relative;
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            padding: 8px 10px;
+            box-sizing: border-box;
+            aspect-ratio: 2 / 1;
+            width: 110px;
+            max-width: 100%;
+            overflow: hidden;
+            font-weight: 500;
+        }
+        .pinned-button:hover,
+        .pinned-search-button:hover {
+            background: #2f6de0;
+            transform: translateY(-1px);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+        }
+        .pinned-button-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+        .pinned-button-menu-btn {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 20px;
+            height: 20px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            z-index: 10;
+            font-size: 0;
+            color: transparent;
+        }
+        .pinned-button-menu-btn::before {
+            content: "";
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: #ffffff;
+            box-shadow: 0 -6px 0 0 #ffffff, 0 6px 0 0 #ffffff;
+        }
+        .pinned-button-menu-btn:hover {
+            opacity: 0.8;
+        }
+        .add-pinned-button,
+        .add-pinned-search-button {
+            background: #3579f6;
+            border: none;
+            border-radius: 0;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+            color: #ffffff;
+            position: relative;
+            display: flex;
+            align-items: flex-end;
+            justify-content: flex-end;
+            padding: 8px 10px;
+            box-sizing: border-box;
+            aspect-ratio: 2 / 1;
+            width: 110px;
+            max-width: 100%;
+        }
+        .add-pinned-button:hover,
+        .add-pinned-search-button:hover {
+            background: #2f6de0;
+            transform: translateY(-1px);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+        }
+        .pinned-add-icon {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 300,
+            'GRAD' 0,
+            'opsz' 24;
+            font-size: 22px;
+        }
+        /* 对话框样式 */
+        #pin-search-modal, #pin-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        #pin-search-modal.show, #pin-modal.show {
+            display: flex;
+        }
+        #pin-search-modal-content, #pin-modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 0;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            min-width: 400px;
+            max-width: 500px;
+        }
+        #pin-modal-content h3 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+        .modal-field {
+            margin-bottom: 20px;
+        }
+        .modal-field label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+        .modal-field input {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 0;
+            box-sizing: border-box;
+        }
+        .modal-field input:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+        .modal-button {
+            padding: 10px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 0;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .modal-button-cancel {
+            background: #f0f0f0;
+            color: #333;
+        }
+        .modal-button-cancel:hover {
+            background: #e0e0e0;
+        }
+        .modal-button-confirm {
+            background: #007bff;
+            color: white;
+        }
+        .modal-button-confirm:hover {
+            background: #0056b3;
+        }
+        .modal-button-delete {
+            background: #dc3545;
+            color: white;
+        }
+        .modal-button-delete:hover {
+            background: #c82333;
+        }
+        .modal-buttons.three-buttons {
+            justify-content: space-between;
+        }
+        .modal-buttons.three-buttons .modal-button-delete {
+            margin-right: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="search-container">
+    <input id="search-box" type="text" placeholder="搜尋或輸入 URL…" />
+        <button id="search-btn">
+            <span class="material-symbols-sharp">search</span>
+        </button>
+        <div id="engine-dropdown-container">
+            <button id="engine-dropdown-btn">Google</button>
+            <div id="engine-dropdown-menu">
+                <div class="engine-option" data-engine="google">Google</div>
+                <div class="engine-option" data-engine="bing">Bing</div>
+                <div class="engine-option" data-engine="duck">DuckDuckGo</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="site-buttons-container"></div>
+
+    <div id="pinned-search-container"></div>
+
+    <div id="pinned-buttons-container"></div>
+
+    <!-- 搜索词钉选对话框 -->
+    <div id="pin-search-modal">
+        <div id="pin-search-modal-content">
+            <h3 id="pin-search-modal-title">新增釘選搜尋詞</h3>
+            <div class="modal-field">
+                <label for="pin-search-input">搜尋詞</label>
+                <input type="text" id="pin-search-input" placeholder="例如：天氣預報" />
+            </div>
+            <div class="modal-buttons" id="pin-search-modal-buttons">
+                <button class="modal-button modal-button-cancel" id="pin-search-cancel-btn">取消</button>
+                <button class="modal-button modal-button-confirm" id="pin-search-confirm-btn">確定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 网址钉选对话框 -->
+    <div id="pin-modal">
+        <div id="pin-modal-content">
+            <h3 id="pin-modal-title">新增釘選網址</h3>
+            <div class="modal-field">
+                <label for="pin-name-input">按鈕名稱</label>
+                <input type="text" id="pin-name-input" placeholder="例如：Google" />
+            </div>
+            <div class="modal-field">
+                <label for="pin-url-input">網址</label>
+                <input type="text" id="pin-url-input" placeholder="例如：https://www.google.com" />
+            </div>
+            <div class="modal-buttons" id="pin-modal-buttons">
+                <button class="modal-button modal-button-cancel" id="pin-cancel-btn">取消</button>
+                <button class="modal-button modal-button-confirm" id="pin-confirm-btn">確定</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="./home.js"></script>
+</body>
+</html>
