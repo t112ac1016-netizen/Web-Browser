@@ -119,6 +119,23 @@ document.addEventListener('DOMContentLoaded', () => {
         return url.toLowerCase().includes('personal-center.html');
     }
 
+    function getConfiguredHomeUrl() {
+        const defaultHomeUrl = './src/home.html';
+        const raw = localStorage.getItem('startup-home-url');
+        if (!raw) return defaultHomeUrl;
+        const url = raw.trim();
+        if (!url) return defaultHomeUrl;
+        if (
+            url.startsWith('http://') ||
+            url.startsWith('https://') ||
+            url.startsWith('./') ||
+            url.startsWith('file://')
+        ) {
+            return url;
+        }
+        return `https://${url}`;
+    }
+
     // 從主進程接收下載進度更新（此處 downloads / renderDownloads / showDownloadsPanel 已宣告）
     if (ipcRenderer) {
         ipcRenderer.on('download-updated', (event, payload) => {
@@ -1835,7 +1852,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 主頁按鈕
     if (homeButton) {
         homeButton.addEventListener('click', () => {
-            openUrlFromUI('./src/home.html', { overrideTitle: '首頁' });
+            openUrlFromUI(getConfiguredHomeUrl(), { overrideTitle: '首頁' });
         });
     }
 
@@ -3109,10 +3126,10 @@ document.addEventListener('DOMContentLoaded', () => {
             createTab(url, url);
         });
         // 再額外開一個首頁分頁
-        createTab('./src/home.html', '首頁');
+        createTab(getConfiguredHomeUrl(), '首頁');
     } else {
         // 沒有釘選分頁時，只開首頁
-        createTab('./src/home.html', '首頁');
+        createTab(getConfiguredHomeUrl(), '首頁');
     }
     renderSidebarView();
     updateNavButtons();

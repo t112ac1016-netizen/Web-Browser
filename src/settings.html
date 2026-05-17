@@ -68,6 +68,13 @@
             margin-right: 8px;
             width: 200px;
         }
+        #startup-home-url-input {
+            padding: 6px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 320px;
+            max-width: 100%;
+        }
     </style>
 </head>
 <body>
@@ -98,6 +105,12 @@
             <option value="left">左側</option>
             <option value="right">右側</option>
         </select>
+    </div>
+
+    <div class="section">
+        <h2>首頁網址設定</h2>
+        <p>可填入開啟瀏覽器與按下首頁按鈕時要前往的網址。留空時使用目前首頁。</p>
+        <input type="text" id="startup-home-url-input" placeholder="例如：https://example.com" />
     </div>
 
     <script src="./settings.js"></script>

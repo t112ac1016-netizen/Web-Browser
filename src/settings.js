@@ -3,6 +3,7 @@ window.addEventListener("DOMContentLoaded", () => {
     const siteList = document.getElementById("site-list");
     const newSiteInput = document.getElementById("new-site-input");
     const addSiteBtn = document.getElementById("add-site-btn");
+    const startupHomeUrlInput = document.getElementById("startup-home-url-input");
 
     // 載入現有設定
     const saved = localStorage.getItem("search-engine") || "google";
@@ -109,4 +110,10 @@ window.addEventListener("DOMContentLoaded", () => {
 
     // 初始化
     loadSiteList();
+    if (startupHomeUrlInput) {
+        startupHomeUrlInput.value = localStorage.getItem("startup-home-url") || "";
+        startupHomeUrlInput.addEventListener("change", () => {
+            localStorage.setItem("startup-home-url", startupHomeUrlInput.value.trim());
+        });
+    }
 });

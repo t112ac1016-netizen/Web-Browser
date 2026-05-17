@@ -22,6 +22,7 @@
             display: flex;
             align-items: center;
             gap: 0;
+            position: relative;
         }
         #search-box {
             flex-grow: 1;
@@ -118,6 +119,62 @@
         }
         #engine-dropdown-menu.show {
             display: block;
+        }
+        #recent-search-menu {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            display: none;
+            z-index: 999;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+        #recent-search-menu.show {
+            display: block;
+        }
+        .recent-site-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 8px;
+            border-bottom: 1px solid #e5e5e5;
+        }
+        .recent-search-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            background: transparent;
+            padding: 0;
+        }
+        .recent-search-item:hover {
+            background: #f0f0f0;
+        }
+        .recent-search-text {
+            flex: 1;
+            border: none;
+            background: transparent;
+            text-align: left;
+            padding: 10px 12px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .recent-search-delete {
+            border: none;
+            background: transparent;
+            color: #666;
+            font-size: 14px;
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+        }
+        .recent-search-delete:hover {
+            color: #000;
         }
         .engine-option {
             padding: 8px 16px;
@@ -369,6 +426,7 @@
                 <div class="engine-option" data-engine="duck">DuckDuckGo</div>
             </div>
         </div>
+        <div id="recent-search-menu"></div>
     </div>
 
     <div id="site-buttons-container"></div>
