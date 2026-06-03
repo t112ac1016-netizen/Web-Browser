@@ -94,6 +94,39 @@ document.addEventListener('DOMContentLoaded', () => {
     // 僅儲存網址字串陣列，例如 ['https://example.com', ...]
     let pinnedTabUrls = [];
 
+    // --- global history persistence (localStorage) ---
+    const GLOBAL_HISTORY_LS_KEY = 'global-history';
+    const GLOBAL_HISTORY_MAX_LOCAL = 2000; // keep latest N entries in localStorage
+
+    function saveGlobalHistoryToLocalStorage() {
+        try {
+            if (!Array.isArray(globalHistory)) return;
+            const toSave = globalHistory.slice(-GLOBAL_HISTORY_MAX_LOCAL);
+            localStorage.setItem(GLOBAL_HISTORY_LS_KEY, JSON.stringify(toSave));
+        } catch (e) {
+            console.warn('saveGlobalHistoryToLocalStorage failed', e);
+        }
+    }
+
+    function loadGlobalHistoryFromLocalStorage() {
+        try {
+            const raw = localStorage.getItem(GLOBAL_HISTORY_LS_KEY);
+            if (!raw) return;
+            const arr = JSON.parse(raw);
+            if (!Array.isArray(arr)) return;
+            globalHistory = arr.map(e => ({
+                url: e.url,
+                title: e.title || e.url || '',
+                favicon: e.favicon || null,
+                tabId: (typeof e.tabId !== 'undefined') ? e.tabId : null,
+                timestamp: e.timestamp || new Date().toISOString(),
+                thumbnail: e.thumbnail || null
+            }));
+        } catch (e) {
+            console.warn('loadGlobalHistoryFromLocalStorage failed', e);
+        }
+    }
+
     // 檢查是否在首頁
     function isHomePage(url) {
         if (!url) return false;
@@ -481,12 +514,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const e = globalHistory[i];
             if (e.url === tab.url && e.tabId === tab.id) {
                 e.thumbnail = thumbSrc;
+                try { saveGlobalHistoryToLocalStorage(); } catch (err) { /* ignore */ }
                 return;
             }
         }
         for (let i = globalHistory.length - 1; i >= 0; i--) {
             if (globalHistory[i].url === tab.url) {
                 globalHistory[i].thumbnail = thumbSrc;
+                try { saveGlobalHistoryToLocalStorage(); } catch (err) { /* ignore */ }
                 return;
             }
         }
@@ -911,6 +946,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (ipcRenderer) {
             ipcRenderer.send('history-delete', removed);
         }
+        try { saveGlobalHistoryToLocalStorage(); } catch (err) { /* ignore */ }
         if (sidebarMode === 'history') {
             renderHistory();
         }
@@ -1354,6 +1390,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (ipcRenderer) {
             ipcRenderer.send('history-append', entry);
         }
+        // 同步儲存到 localStorage，便於下次啟動還原
+        try { saveGlobalHistoryToLocalStorage(); } catch (err) { /* ignore */ }
     }
 
     function navigateTo(url, options = {}) {
@@ -3118,6 +3156,8 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSidebarWidth();
     loadSidebarPosition();
     loadPinnedTabs();
+    // 從 localStorage 載入歷史紀錄（若存在）
+    loadGlobalHistoryFromLocalStorage();
 
     // 啟動時先開啟所有釘選分頁（如果有）
     if (pinnedTabUrls.length > 0) {
@@ -3132,6 +3172,10 @@ document.addEventListener('DOMContentLoaded', () => {
         createTab(getConfiguredHomeUrl(), '首頁');
     }
     renderSidebarView();
+    // 若側邊欄為歷史模式，載入後立即渲染
+    if (sidebarMode === 'history') {
+        renderHistory();
+    }
     updateNavButtons();
     updateAddressInput();
     updateIncognitoButton();

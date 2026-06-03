@@ -23,7 +23,7 @@ window.addEventListener("DOMContentLoaded", () => {
     const pinCancelBtn = document.getElementById("pin-cancel-btn");
     const pinConfirmBtn = document.getElementById("pin-confirm-btn");
 
-    // ?脣??揣撘??迂
+    // 取得搜尋引擎名稱
     function getEngineName(value) {
         const names = {
             'google': 'Google',
@@ -46,7 +46,7 @@ window.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // ?瑁??揣
+    // 執行搜尋
     function performSearch(query = null) {
         const searchQuery = query || searchBox.value.trim();
         if (searchQuery) {
@@ -163,7 +163,7 @@ window.addEventListener("DOMContentLoaded", () => {
         recentSearchMenu.classList.add("show");
     }
 
-    // ?瑁?蝬脩??揣
+    // 執行網站限定搜尋
     function performSiteSearch(site) {
         const query = searchBox.value.trim();
         if (query) {
@@ -172,13 +172,13 @@ window.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // ?湔蝬脩???憿舐內
+    // 舊的 site 按鈕容器已停用（改顯示於最近搜尋選單上方）
     function updateSiteButtons() {
         siteButtonsContainer.innerHTML = "";
         siteButtonsContainer.style.display = "none";
     }
 
-    // ?揣??暺?
+    // 搜尋按鈕點擊
     searchBtn.addEventListener("click", () => {
         hideRecentSearchMenu();
         performSearch();
@@ -194,13 +194,13 @@ window.addEventListener("DOMContentLoaded", () => {
         renderRecentSearchMenu(searchBox.value);
     });
 
-    // 銝????暺?
+    // 搜尋引擎下拉按鈕
     engineDropdownBtn.addEventListener("click", (e) => {
         e.stopPropagation();
         engineDropdownMenu.classList.toggle("show");
     });
 
-    // ?豢??揣撘?
+    // 選擇搜尋引擎
     engineOptions.forEach(option => {
         option.addEventListener("click", (e) => {
             e.stopPropagation();
@@ -211,7 +211,7 @@ window.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    // 暺?憭??銝??
+    // 點擊外部關閉下拉與最近搜尋選單
     document.addEventListener("click", (e) => {
         if (!engineDropdownContainer.contains(e.target)) {
             engineDropdownMenu.classList.remove("show");
@@ -241,11 +241,11 @@ window.addEventListener("DOMContentLoaded", () => {
             button.className = "pinned-search-button";
             button.textContent = searchTerm;
             button.addEventListener("click", (e) => {
-                // 憒??孵????嚗??扯??揣
+                // 如果點到選單按鈕，不執行搜尋
                 if (e.target.closest('.pinned-button-menu-btn')) {
                     return;
                 }
-                // ?扯??揣
+                // 執行搜尋
                 if (window.MiniBrowserAPI && window.MiniBrowserAPI.search) {
                     window.MiniBrowserAPI.search(searchTerm);
                 }
@@ -264,7 +264,7 @@ window.addEventListener("DOMContentLoaded", () => {
             pinnedSearchContainer.appendChild(wrapper);
         });
         
-        // 瘛餃? + ?嚗?蝏??剁?
+        // 新增按鈕（固定顯示）
         const addButton = document.createElement("button");
         addButton.className = "add-pinned-search-button";
         addButton.innerHTML = `<span class="material-symbols-outlined pinned-add-icon">add_2</span>`;
@@ -274,9 +274,9 @@ window.addEventListener("DOMContentLoaded", () => {
         pinnedSearchContainer.appendChild(addButton);
     }
 
-    // 敶?蝻???蝝Ｚ?蝝Ｗ?嚗ull 銵函內?啣?嚗?    let editingSearchIndex = null;
+    let editingSearchIndex = null;
     
-    // ???揣霂??笆霂?
+    // 開啟新增釘選搜尋詞視窗
     function openPinSearchModal() {
         editingSearchIndex = null;
         pinSearchInput.value = "";
@@ -284,17 +284,17 @@ window.addEventListener("DOMContentLoaded", () => {
         const buttons = document.getElementById("pin-search-modal-buttons");
         buttons.className = "modal-buttons";
         buttons.innerHTML = `
-            <button class="modal-button modal-button-cancel" id="pin-search-cancel-btn">??</button>
-            <button class="modal-button modal-button-confirm" id="pin-search-confirm-btn">蝣箏?</button>
+            <button class="modal-button modal-button-cancel" id="pin-search-cancel-btn">取消</button>
+            <button class="modal-button modal-button-confirm" id="pin-search-confirm-btn">確定</button>
         `;
-        // ?蝏?鈭辣
+        // 重新綁定事件
         document.getElementById("pin-search-cancel-btn").addEventListener("click", closePinSearchModal);
         document.getElementById("pin-search-confirm-btn").addEventListener("click", confirmPinSearch);
         pinSearchModal.classList.add("show");
         pinSearchInput.focus();
     }
     
-    // ??蝻??揣霂笆霂?
+    // 開啟編輯釘選搜尋詞視窗
     function openEditPinSearchModal(index, searchTerm) {
         editingSearchIndex = index;
         pinSearchInput.value = searchTerm;
@@ -302,11 +302,11 @@ window.addEventListener("DOMContentLoaded", () => {
         const buttons = document.getElementById("pin-search-modal-buttons");
         buttons.className = "modal-buttons three-buttons";
         buttons.innerHTML = `
-            <button class="modal-button modal-button-delete" id="pin-search-delete-btn">?芷</button>
-            <button class="modal-button modal-button-cancel" id="pin-search-cancel-btn">??</button>
-            <button class="modal-button modal-button-confirm" id="pin-search-confirm-btn">蝣箏?</button>
+            <button class="modal-button modal-button-delete" id="pin-search-delete-btn">刪除</button>
+            <button class="modal-button modal-button-cancel" id="pin-search-cancel-btn">取消</button>
+            <button class="modal-button modal-button-confirm" id="pin-search-confirm-btn">確定</button>
         `;
-        // ?蝏?鈭辣
+        // 重新綁定事件
         document.getElementById("pin-search-delete-btn").addEventListener("click", deletePinSearch);
         document.getElementById("pin-search-cancel-btn").addEventListener("click", closePinSearchModal);
         document.getElementById("pin-search-confirm-btn").addEventListener("click", confirmPinSearch);
@@ -325,43 +325,43 @@ window.addEventListener("DOMContentLoaded", () => {
         closePinSearchModal();
     }
 
-    // ?喲?揣霂??笆霂?
+    // 關閉釘選搜尋詞視窗
     function closePinSearchModal() {
         pinSearchModal.classList.remove("show");
     }
 
-    // 蝖株恕瘛餃???颲???蝝Ｚ?
+    // 確認新增或編輯釘選搜尋詞
     function confirmPinSearch() {
         const searchTerm = pinSearchInput.value.trim();
         
         if (!searchTerm) {
-            alert("隢撓?交?撠?");
+            alert("請輸入搜尋詞");
             return;
         }
         
         const pinnedSearches = loadPinnedSearches();
         
         if (editingSearchIndex !== null) {
-            // 蝻?璅∪?
+            // 編輯模式
             pinnedSearches[editingSearchIndex] = searchTerm;
         } else {
-            // ?啣?璅∪?
+            // 新增模式
             pinnedSearches.push(searchTerm);
         }
         
         savePinnedSearches(pinnedSearches);
         
-        // ?皜脫??
+        // 重新渲染按鈕
         renderPinnedSearchButtons();
         
-        // ?喲撖寡?獢?        closePinSearchModal();
+        closePinSearchModal();
     }
 
-    // ?揣霂??笆霂?鈭辣
+    // 視窗按鈕事件
     pinSearchCancelBtn.addEventListener("click", closePinSearchModal);
     pinSearchConfirmBtn.addEventListener("click", confirmPinSearch);
     
-    // ?孵?揣霂笆霂?憭?喲
+    // 點擊視窗外部關閉
     pinSearchModal.addEventListener("click", (e) => {
         if (e.target === pinSearchModal) {
             closePinSearchModal();
@@ -374,22 +374,22 @@ window.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // 頛?蝬脣?
+    // 載入釘選網址
     function loadPinnedUrls() {
         return JSON.parse(localStorage.getItem("pinned-urls") || "[]");
     }
 
-    // 靽??蝬脣?
+    // 儲存釘選網址
     function savePinnedUrls(urls) {
         localStorage.setItem("pinned-urls", JSON.stringify(urls));
     }
 
-    // 皜脫????
+    // 渲染釘選網址按鈕
     function renderPinnedButtons() {
         pinnedButtonsContainer.innerHTML = "";
         const pinnedUrls = loadPinnedUrls();
         
-        // 皜脫?撌脖?摮??
+        // 渲染已保存的按鈕
         pinnedUrls.forEach((item, index) => {
             const wrapper = document.createElement("div");
             wrapper.className = "pinned-button-wrapper";
@@ -398,15 +398,15 @@ window.addEventListener("DOMContentLoaded", () => {
             button.className = "pinned-button";
             button.textContent = item.name;
             button.addEventListener("click", (e) => {
-                // 憒??孵????嚗??扯?撖潸
+                // 如果點到選單按鈕，不執行導航
                 if (e.target.closest('.pinned-button-menu-btn')) {
                     return;
                 }
-                // 撖潸?啁??
+                // 導航到網址
                 if (window.MiniBrowserAPI && window.MiniBrowserAPI.navigateToUrl) {
                     window.MiniBrowserAPI.navigateToUrl(item.url);
                 } else if (window.MiniBrowserAPI && window.MiniBrowserAPI.search) {
-                    // 憒?瘝⊥? navigateToUrl嚗蝙??search ?寞?嚗?憭? URL嚗?                    window.MiniBrowserAPI.search(item.url);
+                    window.MiniBrowserAPI.search(item.url);
                 } else {
                     window.location.href = item.url;
                 }
@@ -425,7 +425,7 @@ window.addEventListener("DOMContentLoaded", () => {
             pinnedButtonsContainer.appendChild(wrapper);
         });
         
-        // 瘛餃? + ?嚗?蝏??剁?
+        // 新增按鈕（固定顯示）
         const addButton = document.createElement("button");
         addButton.className = "add-pinned-button";
         addButton.innerHTML = `<span class="material-symbols-outlined pinned-add-icon">add_2</span>`;
@@ -435,21 +435,21 @@ window.addEventListener("DOMContentLoaded", () => {
         pinnedButtonsContainer.appendChild(addButton);
     }
 
-    // 敶?蝻????蝝Ｗ?嚗ull 銵函內?啣?嚗?    let editingUrlIndex = null;
+    let editingUrlIndex = null;
     
-    // ???笆霂?
+    // 開啟新增釘選網址視窗
     function openPinModal() {
         editingUrlIndex = null;
         pinNameInput.value = "";
         pinUrlInput.value = "";
-        document.getElementById("pin-modal-title").textContent = "?啣??蝬脣?";
+        document.getElementById("pin-modal-title").textContent = "新增釘選網址";
         const buttons = document.getElementById("pin-modal-buttons");
         buttons.className = "modal-buttons";
         buttons.innerHTML = `
-            <button class="modal-button modal-button-cancel" id="pin-cancel-btn">??</button>
-            <button class="modal-button modal-button-confirm" id="pin-confirm-btn">蝣箏?</button>
+            <button class="modal-button modal-button-cancel" id="pin-cancel-btn">取消</button>
+            <button class="modal-button modal-button-confirm" id="pin-confirm-btn">確定</button>
         `;
-        // ?蝏?鈭辣
+        // 重新綁定事件
         document.getElementById("pin-cancel-btn").addEventListener("click", closePinModal);
         document.getElementById("pin-confirm-btn").addEventListener("click", confirmPin);
         pinModal.classList.add("show");
@@ -460,15 +460,15 @@ window.addEventListener("DOMContentLoaded", () => {
         editingUrlIndex = index;
         pinNameInput.value = name;
         pinUrlInput.value = url;
-        document.getElementById("pin-modal-title").textContent = "蝺刻摩?蝬脣?";
+        document.getElementById("pin-modal-title").textContent = "編輯釘選網址";
         const buttons = document.getElementById("pin-modal-buttons");
         buttons.className = "modal-buttons three-buttons";
         buttons.innerHTML = `
-            <button class="modal-button modal-button-delete" id="pin-delete-btn">?芷</button>
-            <button class="modal-button modal-button-cancel" id="pin-cancel-btn">??</button>
-            <button class="modal-button modal-button-confirm" id="pin-confirm-btn">蝣箏?</button>
+            <button class="modal-button modal-button-delete" id="pin-delete-btn">刪除</button>
+            <button class="modal-button modal-button-cancel" id="pin-cancel-btn">取消</button>
+            <button class="modal-button modal-button-confirm" id="pin-confirm-btn">確定</button>
         `;
-        // ?蝏?鈭辣
+        // 重新綁定事件
         document.getElementById("pin-delete-btn").addEventListener("click", deletePin);
         document.getElementById("pin-cancel-btn").addEventListener("click", closePinModal);
         document.getElementById("pin-confirm-btn").addEventListener("click", confirmPin);
@@ -476,7 +476,7 @@ window.addEventListener("DOMContentLoaded", () => {
         pinNameInput.focus();
     }
     
-    // ?蝵?
+    // 刪除釘選網址
     function deletePin() {
         if (editingUrlIndex === null) return;
         
@@ -488,22 +488,22 @@ window.addEventListener("DOMContentLoaded", () => {
         closePinModal();
     }
 
-    // ?喲?笆霂?
+    // 關閉釘選網址視窗
     function closePinModal() {
         pinModal.classList.remove("show");
     }
 
-    // 蝖株恕瘛餃???颲????
+    // 確認新增或編輯釘選網址
     function confirmPin() {
         const name = pinNameInput.value.trim();
         const url = pinUrlInput.value.trim();
         
         if (!name || !url) {
-            alert("隢‵撖急???蝔勗?蝬脣?");
+            alert("請輸入按鈕名稱與網址");
             return;
         }
         
-        // 憭? URL ?澆?
+        // 處理 URL 格式
         let finalUrl = url;
         if (!finalUrl.startsWith("http://") && !finalUrl.startsWith("https://") && !finalUrl.startsWith("./") && !finalUrl.startsWith("file://")) {
             finalUrl = "https://" + finalUrl;
@@ -512,16 +512,16 @@ window.addEventListener("DOMContentLoaded", () => {
         const pinnedUrls = loadPinnedUrls();
         
         if (editingUrlIndex !== null) {
-            // 蝻?璅∪?
+            // 編輯模式
             pinnedUrls[editingUrlIndex] = { name, url: finalUrl };
         } else {
-            // ?啣?璅∪?
+            // 新增模式
             pinnedUrls.push({ name, url: finalUrl });
         }
         
         savePinnedUrls(pinnedUrls);
         
-        // ?皜脫??
+        // 重新渲染按鈕
         renderPinnedButtons();
         
         closePinModal();
@@ -553,7 +553,7 @@ window.addEventListener("DOMContentLoaded", () => {
     renderPinnedSearchButtons();
     renderPinnedButtons();
     
-    // ???揣獢撓?伐?憿舐內蝬脩???
+    // 監聽搜尋框輸入，更新選單內容
     searchBox.addEventListener("input", () => {
         updateSiteButtons();
         renderRecentSearchMenu(searchBox.value);
