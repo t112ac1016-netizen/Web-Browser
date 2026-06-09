@@ -216,6 +216,7 @@
             const tabBookmarks = document.getElementById('tab-bookmarks');
             const panelHistory = document.getElementById('panel-history');
             const panelBookmarks = document.getElementById('panel-bookmarks');
+            const SELECTED_PANEL_KEY = 'personal-center-selected-panel';
 
             function openUrl(url) {
                 if (!url || url.startsWith('javascript:')) return;
@@ -390,6 +391,7 @@
 
             function switchPanel(panelId) {
                 const isHistory = panelId === 'panel-history';
+                localStorage.setItem(SELECTED_PANEL_KEY, isHistory ? 'panel-history' : 'panel-bookmarks');
                 tabHistory.classList.toggle('active', isHistory);
                 tabBookmarks.classList.toggle('active', !isHistory);
                 panelHistory.classList.toggle('active', isHistory);
@@ -407,9 +409,7 @@
                 switchPanel('panel-bookmarks');
             });
 
-            if (window.MiniBrowserAPI && typeof MiniBrowserAPI.refreshPersonalCenter === 'function') {
-                MiniBrowserAPI.refreshPersonalCenter();
-            }
+            switchPanel(localStorage.getItem(SELECTED_PANEL_KEY) === 'panel-bookmarks' ? 'panel-bookmarks' : 'panel-history');
         })();
     </script>
 </body>

@@ -251,16 +251,60 @@ document.addEventListener('DOMContentLoaded', () => {
     function showDownloadsPanel() {
         if (!downloadsPanel) return;
         downloadsPanel.classList.add('visible');
+        updateToolButtonsState();
     }
 
     function hideDownloadsPanel() {
         if (!downloadsPanel) return;
         downloadsPanel.classList.remove('visible');
+        updateToolButtonsState();
+    }
+
+    function updateToolButtonsState() {
+        const tab = getActiveTab();
+        if (downloadsButton) {
+            downloadsButton.classList.toggle('active', !!(downloadsPanel && downloadsPanel.classList.contains('visible')));
+        }
+        if (settingsButton) {
+            settingsButton.classList.toggle('active', !!(tab && isSettingsPage(tab.url)));
+        }
+        if (personalCenterButton) {
+            personalCenterButton.classList.toggle('active', !!(tab && isPersonalCenterPage(tab.url)));
+        }
+    }
+
+    function closeActiveToolPage() {
+        const tab = getActiveTab();
+        if (!tab || (!isSettingsPage(tab.url) && !isPersonalCenterPage(tab.url))) return;
+        if (canGoBackInActiveTab()) {
+            goBackInActiveTab();
+        } else {
+            openUrlFromUI('./src/home.html', { overrideTitle: '新分頁' });
+        }
+    }
+
+    function isActiveToolPageOpen(checkPage) {
+        const tab = getActiveTab();
+        return !!(tab && checkPage(tab.url));
+    }
+
+    function openToolPage(url, overrideTitle) {
+        hideDownloadsPanel();
+        const tab = getActiveTab();
+        if (tab && (isSettingsPage(tab.url) || isPersonalCenterPage(tab.url))) {
+            if (tab.history && tab.historyIndex >= 0) {
+                tab.history[tab.historyIndex] = url;
+            }
+            navigateTo(url, { addToHistory: false, overrideTitle });
+            return;
+        }
+        openUrlFromUI(url, { overrideTitle });
     }
 
     // 更新地址列顯示
     function updateAddressInput() {
         const tab = getActiveTab();
+        updateToolButtonsState();
         if (!tab || !tab.url) {
             addressInput.value = '';
             addressInput.placeholder = '輸入網址或 AI 指令';
@@ -701,12 +745,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // -------- 事件綁定：下載按鈕 / 下載面板 --------
     if (downloadsButton) {
         downloadsButton.addEventListener('click', () => {
-            // 檢查下載面板是否可見
             if (downloadsPanel && downloadsPanel.classList.contains('visible')) {
-                // 如果可見，則關閉
                 hideDownloadsPanel();
             } else {
-                // 如果不可見，則打開
+                closeActiveToolPage();
                 showDownloadsPanel();
             }
         });
@@ -1906,21 +1948,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // 設定按鈕
     if (settingsButton) {
         settingsButton.addEventListener('click', () => {
-            const tab = getActiveTab();
             const settingsUrl = './src/settings.html';
-            
-            // 檢查當前是否在設定頁面
-            if (tab && isSettingsPage(tab.url)) {
-                // 如果在設定頁面，嘗試返回上一頁
-                if (canGoBackInActiveTab()) {
-                    goBackInActiveTab();
-                } else {
-                    // 如果沒有上一頁，返回首頁
-                    openUrlFromUI('./src/home.html', { overrideTitle: '新分頁' });
-                }
+            if (isActiveToolPageOpen(isSettingsPage)) {
+                closeActiveToolPage();
             } else {
-                // 如果不在設定頁面，打開設定頁面
-                openUrlFromUI(settingsUrl, { overrideTitle: '設定' });
+                openToolPage(settingsUrl, '設定');
             }
         });
     }
@@ -1928,16 +1960,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // 個人中心（與設定鈕相同：再按一次關閉＝返回上一頁或首頁）
     if (personalCenterButton) {
         personalCenterButton.addEventListener('click', () => {
-            const tab = getActiveTab();
             const personalUrl = './personal-center.html';
-            if (tab && isPersonalCenterPage(tab.url)) {
-                if (canGoBackInActiveTab()) {
-                    goBackInActiveTab();
-                } else {
-                    openUrlFromUI('./src/home.html', { overrideTitle: '新分頁' });
-                }
+            if (isActiveToolPageOpen(isPersonalCenterPage)) {
+                closeActiveToolPage();
             } else {
-                openUrlFromUI(personalUrl, { overrideTitle: '個人中心' });
+                openToolPage(personalUrl, '個人中心');
             }
         });
     }
