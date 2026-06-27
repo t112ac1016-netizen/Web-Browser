@@ -4,6 +4,7 @@ const path = require('path');
 
 const MAX_HISTORY_THUMBS = 280;
 const THUMB_ORDER_FILENAME = '_thumb-order.json';
+const APP_ICON_PATH = path.join(__dirname, 'src', 'browser-icon.png');
 
 let historyThumbsDir = null;
 
@@ -170,6 +171,7 @@ function createWindow() {
   // 創建主瀏覽器視窗
   mainWindow = new BrowserWindow({
     // ... 其他設定
+    icon: APP_ICON_PATH,
     webPreferences: {
       // 允許 renderer.js 使用 require('electron').ipcRenderer
       nodeIntegration: true,
@@ -190,6 +192,10 @@ function createWindow() {
 
 // 當 Electron 準備就緒時，創建視窗
 app.whenReady().then(() => {
+  if (process.platform === 'darwin' && app.dock) {
+    app.dock.setIcon(APP_ICON_PATH);
+  }
+
   registerHistoryThumbnailProtocol();
   registerHistoryThumbIpc();
 
