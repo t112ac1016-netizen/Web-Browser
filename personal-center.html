@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=calendar_view_month,lists" />
     <title>個人中心</title>
     <style>
         * { box-sizing: border-box; }
@@ -56,6 +57,11 @@
             display: flex;
             gap: 10px;
             align-items: center;
+            flex-wrap: wrap;
+        }
+        .pc-sort-spacer {
+            flex: 1;
+            min-width: 12px;
         }
         .pc-sort-btn {
             appearance: none;
@@ -77,6 +83,13 @@
         }
         .pc-sort-btn .material-symbols-outlined {
             font-size: 19px;
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .pc-sort-btn .material-symbols-sharp {
+            font-size: 19px;
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .pc-sort-btn .material-symbols-sharp.list-icon {
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
         }
         .pc-panels { padding: 20px 16px 40px; max-width: 1200px; margin: 0 auto; }
@@ -130,6 +143,57 @@
         .pc-history-grid .pc-time {
             margin-top: 5px;
             font-size: 9px;
+        }
+        .pc-history-grid.list-view {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            width: 100%;
+        }
+        .pc-history-grid.list-view .pc-card {
+            display: grid;
+            grid-template-columns: 82px minmax(0, 1fr);
+            min-height: 56px;
+            width: 100%;
+        }
+        .pc-history-grid.list-view .pc-card:hover {
+            transform: none;
+        }
+        .pc-history-grid.list-view .pc-thumb-wrap {
+            aspect-ratio: auto;
+            min-height: 56px;
+        }
+        .pc-history-grid.list-view .pc-thumb.placeholder {
+            padding: 14px;
+        }
+        .pc-history-grid.list-view .pc-card-body {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            grid-template-areas:
+                "title time"
+                "url time";
+            column-gap: 16px;
+            align-items: center;
+            padding: 7px 12px;
+            min-width: 0;
+        }
+        .pc-history-grid.list-view .pc-title {
+            grid-area: title;
+            font-size: 13px;
+            -webkit-line-clamp: 1;
+        }
+        .pc-history-grid.list-view .pc-url {
+            grid-area: url;
+            margin-top: 2px;
+            font-size: 11px;
+            -webkit-line-clamp: 1;
+        }
+        .pc-history-grid.list-view .pc-time {
+            grid-area: time;
+            margin-top: 0;
+            font-size: 10px;
+            white-space: nowrap;
+            justify-self: end;
         }
         .pc-card {
             background: #252525;
@@ -234,6 +298,11 @@
             <span class="material-symbols-outlined">swap_vert</span>
             <span id="history-sort-order-text">新到舊</span>
         </button>
+        <div class="pc-sort-spacer"></div>
+        <button type="button" class="pc-sort-btn" id="history-view-mode" title="切換外觀">
+            <span class="material-symbols-sharp" id="history-view-mode-icon">calendar_view_month</span>
+            <span id="history-view-mode-text">方塊</span>
+        </button>
     </div>
 
     <div class="pc-panels">
@@ -260,10 +329,14 @@
             const historySortbar = document.getElementById('history-sortbar');
             const historySortModeBtn = document.getElementById('history-sort-mode');
             const historySortOrderBtn = document.getElementById('history-sort-order');
+            const historyViewModeBtn = document.getElementById('history-view-mode');
             const historySortModeText = document.getElementById('history-sort-mode-text');
             const historySortOrderText = document.getElementById('history-sort-order-text');
+            const historyViewModeIcon = document.getElementById('history-view-mode-icon');
+            const historyViewModeText = document.getElementById('history-view-mode-text');
             const SELECTED_PANEL_KEY = 'personal-center-selected-panel';
             const HISTORY_SORT_KEY = 'personal-center-history-sort';
+            const HISTORY_VIEW_KEY = 'personal-center-history-view';
             const HISTORY_SORT_MODES = ['time', 'title', 'visits'];
             const HISTORY_SORT_LABELS = {
                 time: { mode: '時間', asc: '舊到新', desc: '新到舊' },
@@ -277,6 +350,7 @@
             };
             let currentHistoryEntries = [];
             let historySortState = loadHistorySortState();
+            let historyViewMode = loadHistoryViewMode();
 
             function openUrl(url) {
                 if (!url || url.startsWith('javascript:')) return;
@@ -309,10 +383,26 @@
                 localStorage.setItem(HISTORY_SORT_KEY, JSON.stringify(historySortState));
             }
 
+            function loadHistoryViewMode() {
+                return localStorage.getItem(HISTORY_VIEW_KEY) === 'list' ? 'list' : 'grid';
+            }
+
+            function saveHistoryViewMode() {
+                localStorage.setItem(HISTORY_VIEW_KEY, historyViewMode);
+            }
+
             function updateHistorySortButtons() {
                 const labels = HISTORY_SORT_LABELS[historySortState.mode];
                 historySortModeText.textContent = labels.mode;
                 historySortOrderText.textContent = labels[historySortState.order];
+            }
+
+            function updateHistoryViewMode() {
+                const isList = historyViewMode === 'list';
+                historyGrid.classList.toggle('list-view', isList);
+                historyViewModeIcon.textContent = isList ? 'lists' : 'calendar_view_month';
+                historyViewModeIcon.classList.toggle('list-icon', isList);
+                historyViewModeText.textContent = isList ? '清單' : '方塊';
             }
 
             function getHistorySortValue(entry) {
@@ -447,6 +537,7 @@
             function renderHistory(entries) {
                 currentHistoryEntries = Array.isArray(entries) ? entries.slice() : [];
                 updateHistorySortButtons();
+                updateHistoryViewMode();
                 drawHistory(sortHistoryEntries(currentHistoryEntries));
             }
 
@@ -547,8 +638,14 @@
                 saveHistorySortState();
                 renderHistory(currentHistoryEntries);
             });
+            historyViewModeBtn.addEventListener('click', function () {
+                historyViewMode = historyViewMode === 'list' ? 'grid' : 'list';
+                saveHistoryViewMode();
+                updateHistoryViewMode();
+            });
 
             updateHistorySortButtons();
+            updateHistoryViewMode();
             switchPanel(localStorage.getItem(SELECTED_PANEL_KEY) === 'panel-bookmarks' ? 'panel-bookmarks' : 'panel-history');
         })();
     </script>
