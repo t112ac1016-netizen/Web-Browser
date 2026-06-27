@@ -2255,6 +2255,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const PERSONAL_CENTER_HISTORY_JSON_MAX = 480000;
 
     function buildPersonalCenterHistoryPayload() {
+        const visitCounts = new Map();
+        globalHistory.forEach(e => {
+            if (!e || !e.url) return;
+            visitCounts.set(e.url, (visitCounts.get(e.url) || 0) + 1);
+        });
         const reversed = globalHistory.slice().reverse();
         let entries = reversed.map(e => ({
             url: e.url,
@@ -2262,7 +2267,8 @@ document.addEventListener('DOMContentLoaded', () => {
             favicon: e.favicon || null,
             timestamp: e.timestamp,
             tabId: e.tabId != null ? e.tabId : null,
-            thumbnail: e.thumbnail || null
+            thumbnail: e.thumbnail || null,
+            visitCount: visitCounts.get(e.url) || 1
         }));
         let json = JSON.stringify(entries);
         while (json.length > PERSONAL_CENTER_HISTORY_JSON_MAX) {

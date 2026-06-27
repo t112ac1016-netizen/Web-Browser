@@ -49,6 +49,36 @@
         .pc-tab.active .material-symbols-outlined {
             font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
         }
+        .pc-sortbar {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 14px 16px 0;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .pc-sort-btn {
+            appearance: none;
+            border: 1px solid #3a3a3a;
+            background: #252525;
+            color: #e8e8e8;
+            min-height: 34px;
+            padding: 0 12px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .pc-sort-btn:hover {
+            border-color: #4a9eff;
+            background: #2d2d2d;
+        }
+        .pc-sort-btn .material-symbols-outlined {
+            font-size: 19px;
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
         .pc-panels { padding: 20px 16px 40px; max-width: 1200px; margin: 0 auto; }
         .pc-panel { display: none; }
         .pc-panel.active { display: block; }
@@ -195,6 +225,17 @@
         </button>
     </header>
 
+    <div class="pc-sortbar" id="history-sortbar">
+        <button type="button" class="pc-sort-btn" id="history-sort-mode" title="切換排序方式">
+            <span class="material-symbols-outlined">sort</span>
+            <span id="history-sort-mode-text">時間</span>
+        </button>
+        <button type="button" class="pc-sort-btn" id="history-sort-order" title="切換排序順序">
+            <span class="material-symbols-outlined">swap_vert</span>
+            <span id="history-sort-order-text">新到舊</span>
+        </button>
+    </div>
+
     <div class="pc-panels">
         <section class="pc-panel active" id="panel-history" aria-label="歷史紀錄">
             <div id="history-grid" class="pc-grid pc-history-grid"></div>
@@ -216,7 +257,26 @@
             const tabBookmarks = document.getElementById('tab-bookmarks');
             const panelHistory = document.getElementById('panel-history');
             const panelBookmarks = document.getElementById('panel-bookmarks');
+            const historySortbar = document.getElementById('history-sortbar');
+            const historySortModeBtn = document.getElementById('history-sort-mode');
+            const historySortOrderBtn = document.getElementById('history-sort-order');
+            const historySortModeText = document.getElementById('history-sort-mode-text');
+            const historySortOrderText = document.getElementById('history-sort-order-text');
             const SELECTED_PANEL_KEY = 'personal-center-selected-panel';
+            const HISTORY_SORT_KEY = 'personal-center-history-sort';
+            const HISTORY_SORT_MODES = ['time', 'title', 'visits'];
+            const HISTORY_SORT_LABELS = {
+                time: { mode: '時間', asc: '舊到新', desc: '新到舊' },
+                title: { mode: 'Title', asc: 'A-Z', desc: 'Z-A' },
+                visits: { mode: '瀏覽次數', asc: '少到多', desc: '多到少' }
+            };
+            const HISTORY_SORT_DEFAULT_ORDER = {
+                time: 'desc',
+                title: 'asc',
+                visits: 'desc'
+            };
+            let currentHistoryEntries = [];
+            let historySortState = loadHistorySortState();
 
             function openUrl(url) {
                 if (!url || url.startsWith('javascript:')) return;
@@ -232,7 +292,61 @@
                 return d.toLocaleString();
             }
 
-            function renderHistory(entries) {
+            function loadHistorySortState() {
+                try {
+                    const saved = JSON.parse(localStorage.getItem(HISTORY_SORT_KEY) || '{}');
+                    const mode = HISTORY_SORT_MODES.includes(saved.mode) ? saved.mode : 'time';
+                    const order = saved.order === 'asc' || saved.order === 'desc'
+                        ? saved.order
+                        : HISTORY_SORT_DEFAULT_ORDER[mode];
+                    return { mode, order };
+                } catch (err) {
+                    return { mode: 'time', order: 'desc' };
+                }
+            }
+
+            function saveHistorySortState() {
+                localStorage.setItem(HISTORY_SORT_KEY, JSON.stringify(historySortState));
+            }
+
+            function updateHistorySortButtons() {
+                const labels = HISTORY_SORT_LABELS[historySortState.mode];
+                historySortModeText.textContent = labels.mode;
+                historySortOrderText.textContent = labels[historySortState.order];
+            }
+
+            function getHistorySortValue(entry) {
+                if (historySortState.mode === 'title') {
+                    return (entry.title || entry.url || '').trim();
+                }
+                if (historySortState.mode === 'visits') {
+                    return Number(entry.visitCount) || 0;
+                }
+                const time = new Date(entry.timestamp).getTime();
+                return Number.isNaN(time) ? 0 : time;
+            }
+
+            function sortHistoryEntries(entries) {
+                const direction = historySortState.order === 'asc' ? 1 : -1;
+                return (entries || []).slice().sort(function (a, b) {
+                    const av = getHistorySortValue(a);
+                    const bv = getHistorySortValue(b);
+                    let result = 0;
+                    if (historySortState.mode === 'title') {
+                        result = String(av).localeCompare(String(bv), undefined, { sensitivity: 'base' });
+                    } else {
+                        result = av - bv;
+                    }
+                    if (result === 0) {
+                        const at = new Date(a.timestamp).getTime() || 0;
+                        const bt = new Date(b.timestamp).getTime() || 0;
+                        return bt - at;
+                    }
+                    return result * direction;
+                });
+            }
+
+            function drawHistory(entries) {
                 historyGrid.innerHTML = '';
                 if (!entries || entries.length === 0) {
                     historyEmpty.style.display = 'block';
@@ -330,6 +444,12 @@
                 });
             }
 
+            function renderHistory(entries) {
+                currentHistoryEntries = Array.isArray(entries) ? entries.slice() : [];
+                updateHistorySortButtons();
+                drawHistory(sortHistoryEntries(currentHistoryEntries));
+            }
+
             function renderBookmarks(list) {
                 bookmarksGrid.innerHTML = '';
                 if (!list || list.length === 0) {
@@ -396,6 +516,7 @@
                 tabBookmarks.classList.toggle('active', !isHistory);
                 panelHistory.classList.toggle('active', isHistory);
                 panelBookmarks.classList.toggle('active', !isHistory);
+                historySortbar.style.display = isHistory ? 'flex' : 'none';
 
                 if (window.MiniBrowserAPI && typeof MiniBrowserAPI.refreshPersonalCenter === 'function') {
                     MiniBrowserAPI.refreshPersonalCenter();
@@ -408,7 +529,26 @@
             tabBookmarks.addEventListener('click', function () {
                 switchPanel('panel-bookmarks');
             });
+            historySortModeBtn.addEventListener('click', function () {
+                const currentIndex = HISTORY_SORT_MODES.indexOf(historySortState.mode);
+                const nextMode = HISTORY_SORT_MODES[(currentIndex + 1) % HISTORY_SORT_MODES.length];
+                historySortState = {
+                    mode: nextMode,
+                    order: HISTORY_SORT_DEFAULT_ORDER[nextMode]
+                };
+                saveHistorySortState();
+                renderHistory(currentHistoryEntries);
+            });
+            historySortOrderBtn.addEventListener('click', function () {
+                historySortState = {
+                    mode: historySortState.mode,
+                    order: historySortState.order === 'asc' ? 'desc' : 'asc'
+                };
+                saveHistorySortState();
+                renderHistory(currentHistoryEntries);
+            });
 
+            updateHistorySortButtons();
             switchPanel(localStorage.getItem(SELECTED_PANEL_KEY) === 'panel-bookmarks' ? 'panel-bookmarks' : 'panel-history');
         })();
     </script>
