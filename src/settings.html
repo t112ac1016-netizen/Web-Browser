@@ -7,6 +7,8 @@
         body {
             padding: 20px;
             font-family: sans-serif;
+            background: #1F1F1F;
+            color: white;
         }
         select {
             padding: 6px;
@@ -17,6 +19,10 @@
         }
         .section h2 {
             margin-top: 0;
+        }
+        label,
+        p {
+            color: #cccccc;
         }
         #site-list {
             list-style: none;
@@ -50,28 +56,41 @@
             background: #c82333;
         }
         #add-site-btn {
-            padding: 8px 16px;
-            background: #007bff;
+            padding: 6px 28px;
+            box-sizing: border-box;
+            height: 31px;
+            min-width: 96px;
+            background: black;
             color: white;
-            border: none;
-            border-radius: 4px;
+            border: 1px solid white;
+            border-radius: 0;
             cursor: pointer;
             font-size: 14px;
+            line-height: 17px;
+            appearance: none;
         }
         #add-site-btn:hover {
-            background: #0056b3;
+            background: black;
         }
         #new-site-input {
             padding: 6px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            box-sizing: border-box;
+            height: 31px;
+            font-size: 14px;
+            line-height: 17px;
+            background: #2A2A2A;
+            color: white;
+            border: 1px solid white;
+            border-radius: 0;
             margin-right: 8px;
             width: 200px;
         }
         #startup-home-url-input {
             padding: 6px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            background: #2A2A2A;
+            color: white;
+            border: 1px solid white;
+            border-radius: 0;
             width: 320px;
             max-width: 100%;
         }
@@ -80,7 +99,7 @@
 <body>
     <div class="section">
     <h2>搜尋引擎設定</h2>
-    <label>預設搜尋引擎：</label>
+    <label>選擇預設搜尋引擎</label>
     <select id="engine-select">
         <option value="google">Google</option>
         <option value="bing">Bing</option>
@@ -90,7 +109,7 @@
 
     <div class="section">
         <h2>網站搜尋清單</h2>
-        <p>新增網址（如 wikipedia.org），搜尋時會顯示這些網站的快速搜尋按鈕</p>
+        <p>新增常用網站網域，搜尋時可快速限制在指定網站內查找。</p>
         <ul id="site-list"></ul>
         <div>
             <input type="text" id="new-site-input" placeholder="輸入網址，如 wikipedia.org" />
@@ -100,7 +119,7 @@
 
     <div class="section">
         <h2>側邊欄設定</h2>
-        <label>側邊欄位置：</label>
+        <label>選擇側邊欄顯示位置</label>
         <select id="sidebar-position-select">
             <option value="left">左側</option>
             <option value="right">右側</option>
@@ -109,7 +128,7 @@
 
     <div class="section">
         <h2>首頁網址設定</h2>
-        <p>可填入開啟瀏覽器與按下首頁按鈕時要前往的網址。留空時使用目前首頁。</p>
+        <p>設定啟動瀏覽器與按下首頁按鈕時開啟的網址。留空則使用預設首頁。</p>
         <input type="text" id="startup-home-url-input" placeholder="例如：https://example.com" />
     </div>
 
