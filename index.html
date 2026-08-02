@@ -379,6 +379,7 @@
             color: #007bff;
         }
         #sidebar-mode-tabs .material-symbols-sharp,
+        #sidebar-mode-bookmarks .material-symbols-sharp,
         #sidebar-mode-clipboard .material-symbols-sharp {
             font-variation-settings:
             'FILL' 1,
@@ -483,6 +484,21 @@
             margin-bottom: 4px;
             background: #f0f0f0;
         }
+        #tabs-list.thumbnail-mode .tab-tool-thumbnail {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #2a2a2a;
+            color: #ffffff;
+        }
+        #tabs-list.thumbnail-mode .tab-thumbnail-icon {
+            font-size: 52px;
+            font-variation-settings:
+            'FILL' 1,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 48;
+        }
         #tabs-list.thumbnail-mode .tab-title {
             font-size: 12px;
             text-align: center;
@@ -554,6 +570,13 @@
             top: -4px;
             left: -2px;
         }
+        .tab-favicon-icon.material-symbols-sharp {
+            font-variation-settings:
+            'FILL' 1,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 48;
+        }
         .tab-title {
             flex: 1;
             overflow: hidden;
@@ -613,6 +636,64 @@
             flex-grow: 1;
             overflow-y: auto;
             display: none; /* 預設顯示分頁，隱藏歷史 */
+        }
+        #bookmarks-list {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: none;
+            padding: 4px 8px 12px;
+            background: #2A2A2A;
+            color: #ffffff;
+        }
+        .sidebar-bookmark-section {
+            padding-top: 8px;
+        }
+        .sidebar-bookmark-section + .sidebar-bookmark-section {
+            border-top: 1px solid #3a3a3a;
+            margin-top: 10px;
+            padding-top: 10px;
+        }
+        .sidebar-bookmark-heading {
+            margin: 0 0 6px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #ffffff;
+        }
+        .sidebar-bookmark-item {
+            width: 100%;
+            padding: 7px 8px;
+            margin: 0 0 6px;
+            border: 1px solid #333333;
+            border-radius: 0;
+            background: #252525;
+            color: #ffffff;
+            cursor: pointer;
+            text-align: left;
+        }
+        .sidebar-bookmark-item:hover {
+            border-color: #4a9eff;
+            background: #2d2d2d;
+        }
+        .sidebar-bookmark-title {
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .sidebar-bookmark-url {
+            margin-top: 3px;
+            font-size: 10px;
+            color: #888888;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .sidebar-bookmark-empty {
+            padding: 18px 6px;
+            font-size: 12px;
+            color: #777777;
+            text-align: center;
         }
         /* 複製暫存列表 */
         #clipboard-list {
@@ -1073,6 +1154,7 @@
             <div id="tabs-header">
                 <div id="sidebar-mode-switch">
                     <button id="sidebar-mode-tabs" class="sidebar-mode-btn active"><span class="material-symbols-sharp">select_window</span></button>
+                    <button id="sidebar-mode-bookmarks" class="sidebar-mode-btn"><span class="material-symbols-sharp">bookmark</span></button>
                     <button id="sidebar-mode-history" class="sidebar-mode-btn"><span class="material-symbols-outlined">history</span></button>
                     <button id="sidebar-mode-clipboard" class="sidebar-mode-btn"><span class="material-symbols-sharp">content_paste</span></button>
                 </div>
@@ -1087,6 +1169,7 @@
             </div>
 
             <ul id="tabs-list"></ul>
+            <div id="bookmarks-list"></div>
             <ul id="history-list"></ul>
             <ul id="clipboard-list"></ul>
             <div id="sidebar-resizer"></div>

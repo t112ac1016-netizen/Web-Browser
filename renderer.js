@@ -41,9 +41,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebarResizer = document.getElementById('sidebar-resizer');
 
     const sidebarModeTabsBtn = document.getElementById('sidebar-mode-tabs');
+    const sidebarModeBookmarksBtn = document.getElementById('sidebar-mode-bookmarks');
     const sidebarModeHistoryBtn = document.getElementById('sidebar-mode-history');
     const sidebarModeClipboardBtn = document.getElementById('sidebar-mode-clipboard');
     const historyList = document.getElementById('history-list');
+    const bookmarksList = document.getElementById('bookmarks-list');
     const clipboardList = document.getElementById('clipboard-list');
 
     // 上一頁 / 下一頁 預覽元素
@@ -73,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let suppressNextHistoryUpdate = false;
     let historyJumpInProgress = false;
 
-    // 側邊欄模式：'tabs'、'history' 或 'clipboard'
+    // 側邊欄模式：'tabs'、'bookmarks'、'history' 或 'clipboard'
     let sidebarMode = 'tabs';
     // 側邊欄是否是由滑鼠自動暫時打開（hover 開啟）
     let sidebarAutoOpened = false;
@@ -153,6 +155,38 @@ document.addEventListener('DOMContentLoaded', () => {
     function isPersonalCenterPage(url) {
         if (!url) return false;
         return url.toLowerCase().includes('personal-center.html');
+    }
+
+    function isDownloadsPage(url) {
+        if (!url) return false;
+        const normalizedUrl = url.toLowerCase();
+        return normalizedUrl === './src/downloads.html' ||
+               normalizedUrl.endsWith('/src/downloads.html') ||
+               normalizedUrl.endsWith('\\src\\downloads.html') ||
+               normalizedUrl.includes('downloads.html');
+    }
+
+    function isDownloadsPanelOpen() {
+        return !!(downloadsPanel && downloadsPanel.classList.contains('visible'));
+    }
+
+    function getSidebarTabIcon(tab) {
+        const url = tab && tab.url;
+        if (tab && tab.id === activeTabId && isDownloadsPanelOpen()) return { name: 'download', className: 'material-symbols-sharp' };
+        if (isHomePage(url)) return { name: 'home', className: 'material-symbols-outlined' };
+        if (isSettingsPage(url)) return { name: 'settings', className: 'material-symbols-sharp' };
+        if (isPersonalCenterPage(url)) return { name: 'account_circle', className: 'material-symbols-sharp' };
+        if (isDownloadsPage(url)) return { name: 'download', className: 'material-symbols-sharp' };
+        return null;
+    }
+
+    function createSidebarTabIcon(tab, extraClassName = '') {
+        const iconInfo = getSidebarTabIcon(tab);
+        if (!iconInfo) return null;
+        const icon = document.createElement('span');
+        icon.className = `${iconInfo.className} ${extraClassName}`.trim();
+        icon.textContent = iconInfo.name;
+        return icon;
     }
 
     function getConfiguredHomeUrl() {
@@ -255,12 +289,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!downloadsPanel) return;
         downloadsPanel.classList.add('visible');
         updateToolButtonsState();
+        renderTabs();
     }
 
     function hideDownloadsPanel() {
         if (!downloadsPanel) return;
         downloadsPanel.classList.remove('visible');
         updateToolButtonsState();
+        renderTabs();
     }
 
     function updateToolButtonsState() {
@@ -773,29 +809,47 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderSidebarView() {
         if (sidebarMode === 'tabs') {
             tabsList.style.display = '';
+            bookmarksList.style.display = 'none';
             historyList.style.display = 'none';
             clipboardList.style.display = 'none';
             addTabButton.style.display = '';
             if (toggleThumbnailViewButton) toggleThumbnailViewButton.style.display = '';
             sidebarModeTabsBtn.classList.add('active');
+            if (sidebarModeBookmarksBtn) sidebarModeBookmarksBtn.classList.remove('active');
             sidebarModeHistoryBtn.classList.remove('active');
             if (sidebarModeClipboardBtn) sidebarModeClipboardBtn.classList.remove('active');
+        } else if (sidebarMode === 'bookmarks') {
+            tabsList.style.display = 'none';
+            bookmarksList.style.display = 'block';
+            historyList.style.display = 'none';
+            clipboardList.style.display = 'none';
+            addTabButton.style.display = 'none';
+            if (toggleThumbnailViewButton) toggleThumbnailViewButton.style.display = 'none';
+            sidebarModeTabsBtn.classList.remove('active');
+            if (sidebarModeBookmarksBtn) sidebarModeBookmarksBtn.classList.add('active');
+            sidebarModeHistoryBtn.classList.remove('active');
+            if (sidebarModeClipboardBtn) sidebarModeClipboardBtn.classList.remove('active');
+            renderSidebarBookmarks();
         } else if (sidebarMode === 'history') {
             tabsList.style.display = 'none';
+            bookmarksList.style.display = 'none';
             historyList.style.display = 'block';
             clipboardList.style.display = 'none';
             addTabButton.style.display = 'none';
             if (toggleThumbnailViewButton) toggleThumbnailViewButton.style.display = 'none';
             sidebarModeTabsBtn.classList.remove('active');
+            if (sidebarModeBookmarksBtn) sidebarModeBookmarksBtn.classList.remove('active');
             sidebarModeHistoryBtn.classList.add('active');
             if (sidebarModeClipboardBtn) sidebarModeClipboardBtn.classList.remove('active');
         } else if (sidebarMode === 'clipboard') {
             tabsList.style.display = 'none';
+            bookmarksList.style.display = 'none';
             historyList.style.display = 'none';
             clipboardList.style.display = 'block';
             addTabButton.style.display = 'none';
             if (toggleThumbnailViewButton) toggleThumbnailViewButton.style.display = 'none';
             sidebarModeTabsBtn.classList.remove('active');
+            if (sidebarModeBookmarksBtn) sidebarModeBookmarksBtn.classList.remove('active');
             sidebarModeHistoryBtn.classList.remove('active');
             if (sidebarModeClipboardBtn) sidebarModeClipboardBtn.classList.add('active');
         }
@@ -890,33 +944,42 @@ document.addEventListener('DOMContentLoaded', () => {
                 headerDiv.appendChild(pinBtn);
                 headerDiv.appendChild(closeBtn);
 
-                const thumbnailImg = document.createElement('img');
-                thumbnailImg.className = 'tab-thumbnail';
-                const thumbKey = makeThumbKey(tab.id, tab.url);
-                if (historyThumbnails[thumbKey]) {
-                    thumbnailImg.src = historyThumbnails[thumbKey];
+                let thumbnailEl = null;
+                const sidebarIcon = createSidebarTabIcon(tab, 'tab-thumbnail-icon');
+                if (sidebarIcon) {
+                    thumbnailEl = document.createElement('div');
+                    thumbnailEl.className = 'tab-thumbnail tab-tool-thumbnail';
+                    thumbnailEl.appendChild(sidebarIcon);
                 } else {
-                    // 如果没有缩图，显示灰色占位符
-                    thumbnailImg.style.backgroundColor = '#e0e0e0';
-                    thumbnailImg.style.display = 'flex';
-                    thumbnailImg.style.alignItems = 'center';
-                    thumbnailImg.style.justifyContent = 'center';
-                    thumbnailImg.style.color = '#999';
-                    thumbnailImg.alt = '無縮圖';
+                    const thumbnailImg = document.createElement('img');
+                    thumbnailImg.className = 'tab-thumbnail';
+                    const thumbKey = makeThumbKey(tab.id, tab.url);
+                    if (historyThumbnails[thumbKey]) {
+                        thumbnailImg.src = historyThumbnails[thumbKey];
+                    } else {
+                        // 如果没有缩图，显示灰色占位符
+                        thumbnailImg.style.backgroundColor = '#e0e0e0';
+                        thumbnailImg.style.display = 'flex';
+                        thumbnailImg.style.alignItems = 'center';
+                        thumbnailImg.style.justifyContent = 'center';
+                        thumbnailImg.style.color = '#999';
+                        thumbnailImg.alt = '無縮圖';
+                    }
+                    thumbnailImg.onerror = function() {
+                        this.style.backgroundColor = '#e0e0e0';
+                        this.style.display = 'flex';
+                        this.style.alignItems = 'center';
+                        this.style.justifyContent = 'center';
+                    };
+                    thumbnailEl = thumbnailImg;
                 }
-                thumbnailImg.onerror = function() {
-                    this.style.backgroundColor = '#e0e0e0';
-                    this.style.display = 'flex';
-                    this.style.alignItems = 'center';
-                    this.style.justifyContent = 'center';
-                };
 
                 const titleSpan = document.createElement('span');
                 titleSpan.className = 'tab-title';
                 titleSpan.textContent = tab.title || tab.url || '新分頁';
 
                 li.appendChild(headerDiv);
-                li.appendChild(thumbnailImg);
+                li.appendChild(thumbnailEl);
                 li.appendChild(titleSpan);
             } else {
                 // 列表模式：显示 favicon、标题、釘選按鈕和关闭按钮
@@ -931,17 +994,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     faviconImg.style.display = 'none';
                 }
 
-                // 如果是首頁，使用 Material Symbols 的 home 圖示代替 favicon
-                let homeIcon = null;
-                try {
-                    if (isHomePage(tab.url)) {
-                        homeIcon = document.createElement('span');
-                        homeIcon.className = 'material-symbols-outlined tab-favicon-icon';
-                        homeIcon.textContent = 'home';
-                    }
-                } catch (e) {
-                    // 忽略判斷錯誤
-                }
+                const sidebarIcon = createSidebarTabIcon(tab, 'tab-favicon-icon');
 
                 const titleSpan = document.createElement('span');
                 titleSpan.className = 'tab-title';
@@ -972,9 +1025,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     closeTab(tab.id);
                 });
 
-                // 若為首頁則加入 home 圖示；否則加入 favicon（如果有）
-                if (homeIcon) {
-                    li.appendChild(homeIcon);
+                // 工具頁使用 Material Symbols 圖示；一般頁面使用 favicon（如果有）
+                if (sidebarIcon) {
+                    li.appendChild(sidebarIcon);
                 } else {
                     li.appendChild(faviconImg);
                 }
@@ -1144,6 +1197,137 @@ document.addEventListener('DOMContentLoaded', () => {
 
             historyList.appendChild(li);
         });
+    }
+
+    function getHistoryTitleForUrl(url, fallbackTitle = '') {
+        let title = fallbackTitle || url;
+        for (let i = globalHistory.length - 1; i >= 0; i--) {
+            if (globalHistory[i].url === url && globalHistory[i].title) {
+                title = globalHistory[i].title;
+                break;
+            }
+        }
+        if (title === url) {
+            try {
+                title = new URL(url).hostname || url;
+            } catch (err) {
+                /* keep url */
+            }
+        }
+        return title;
+    }
+
+    function loadPinnedHomeUrlItems() {
+        try {
+            const stored = localStorage.getItem('pinned-urls');
+            const arr = stored ? JSON.parse(stored) : [];
+            if (!Array.isArray(arr)) return [];
+            return arr
+                .filter(item => item && typeof item.url === 'string' && item.url.trim().length > 0)
+                .map(item => ({
+                    url: item.url,
+                    title: typeof item.name === 'string' && item.name.trim() ? item.name.trim() : item.url
+                }));
+        } catch (e) {
+            console.warn('載入釘選網址失敗', e);
+            return [];
+        }
+    }
+
+    function getSidebarBookmarkData() {
+        loadBookmarks();
+        loadPinnedTabs();
+        return {
+            bookmarks: bookmarkedUrls.map(url => ({ url, title: getHistoryTitleForUrl(url) })),
+            pinnedUrls: loadPinnedHomeUrlItems(),
+            pinnedTabs: pinnedTabUrls.map(url => ({ url, title: getHistoryTitleForUrl(url) }))
+        };
+    }
+
+    function getUrlHost(url) {
+        try {
+            return new URL(url).hostname.toLowerCase().replace(/^www\./, '');
+        } catch (err) {
+            return '';
+        }
+    }
+
+    function areHostsRelated(a, b) {
+        if (!a || !b) return false;
+        return a === b || a.endsWith(`.${b}`) || b.endsWith(`.${a}`);
+    }
+
+    function createSidebarBookmarkItem(item) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'sidebar-bookmark-item';
+        button.title = item.url;
+
+        const title = document.createElement('div');
+        title.className = 'sidebar-bookmark-title';
+        title.textContent = item.title || item.url;
+
+        const url = document.createElement('div');
+        url.className = 'sidebar-bookmark-url';
+        url.textContent = item.url;
+
+        button.appendChild(title);
+        button.appendChild(url);
+        button.addEventListener('click', () => {
+            openUrlFromUI(item.url);
+            sidebarMode = 'tabs';
+            renderSidebarView();
+        });
+        return button;
+    }
+
+    function appendSidebarBookmarkSection(title, items) {
+        if (!items || items.length === 0) return;
+        const section = document.createElement('section');
+        section.className = 'sidebar-bookmark-section';
+
+        const heading = document.createElement('h3');
+        heading.className = 'sidebar-bookmark-heading';
+        heading.textContent = title;
+        section.appendChild(heading);
+
+        items.forEach(item => {
+            section.appendChild(createSidebarBookmarkItem(item));
+        });
+        bookmarksList.appendChild(section);
+    }
+
+    function renderSidebarBookmarks() {
+        if (!bookmarksList) return;
+        bookmarksList.innerHTML = '';
+        const data = getSidebarBookmarkData();
+        const allItems = [
+            ...data.bookmarks,
+            ...data.pinnedUrls,
+            ...data.pinnedTabs
+        ];
+
+        const activeHost = getUrlHost((getActiveTab() || {}).url);
+        const seenRelated = new Set();
+        const relatedItems = allItems.filter(item => {
+            const host = getUrlHost(item.url);
+            if (!areHostsRelated(activeHost, host) || seenRelated.has(item.url)) return false;
+            seenRelated.add(item.url);
+            return true;
+        });
+
+        if (relatedItems.length === 0 && allItems.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'sidebar-bookmark-empty';
+            empty.textContent = '尚無書籤、釘選網址或釘選頁面';
+            bookmarksList.appendChild(empty);
+            return;
+        }
+
+        appendSidebarBookmarkSection('相關書籤', relatedItems);
+        appendSidebarBookmarkSection('書籤', data.bookmarks);
+        appendSidebarBookmarkSection('釘選網址', data.pinnedUrls);
+        appendSidebarBookmarkSection('釘選頁面', data.pinnedTabs);
     }
 
     // 判斷內容類型
@@ -1487,6 +1671,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (sidebarMode === 'history') {
             renderHistory();
         }
+        if (sidebarMode === 'bookmarks') {
+            renderSidebarBookmarks();
+        }
 
         if (ipcRenderer) {
             ipcRenderer.send('history-append', entry);
@@ -1762,6 +1949,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 注意：全域歷史記錄將在頁面標題更新時添加（確保有正確的標題和 favicon）
         updateAddressInput();
+        if (sidebarMode === 'bookmarks') {
+            renderSidebarBookmarks();
+        }
     }
 
     // -------- 事件綁定 --------
@@ -1864,6 +2054,9 @@ document.addEventListener('DOMContentLoaded', () => {
             bookmarkedUrls.push(url);
             saveBookmarks();
         }
+        if (sidebarMode === 'bookmarks') {
+            renderSidebarBookmarks();
+        }
         updateBookmarkButtonState();
     }
 
@@ -1871,6 +2064,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!url) return;
         bookmarkedUrls = bookmarkedUrls.filter(u => u !== url);
         saveBookmarks();
+        if (sidebarMode === 'bookmarks') {
+            renderSidebarBookmarks();
+        }
         updateBookmarkButtonState();
     }
 
@@ -1886,6 +2082,9 @@ document.addEventListener('DOMContentLoaded', () => {
             savePinnedTabs();
         }
         syncPinnedStateForUrl(url);
+        if (sidebarMode === 'bookmarks') {
+            renderSidebarBookmarks();
+        }
         updateBookmarkButtonState();
     }
 
@@ -1894,6 +2093,9 @@ document.addEventListener('DOMContentLoaded', () => {
         pinnedTabUrls = pinnedTabUrls.filter(u => u !== url);
         savePinnedTabs();
         syncPinnedStateForUrl(url);
+        if (sidebarMode === 'bookmarks') {
+            renderSidebarBookmarks();
+        }
         updateBookmarkButtonState();
     }
 
@@ -2086,9 +2288,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 側邊欄模式切換：分頁 / 歷史 / 複製暫存
-    if (sidebarModeTabsBtn && sidebarModeHistoryBtn && sidebarModeClipboardBtn) {
+    if (sidebarModeTabsBtn && sidebarModeBookmarksBtn && sidebarModeHistoryBtn && sidebarModeClipboardBtn) {
         sidebarModeTabsBtn.addEventListener('click', () => {
             sidebarMode = 'tabs';
+            renderSidebarView();
+        });
+        sidebarModeBookmarksBtn.addEventListener('click', () => {
+            sidebarMode = 'bookmarks';
             renderSidebarView();
         });
         sidebarModeHistoryBtn.addEventListener('click', () => {
@@ -2588,6 +2794,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         } catch (e) {
                             console.warn('刪除釘選網址失敗', e);
                         }
+                        if (sidebarMode === 'bookmarks') {
+                            renderSidebarBookmarks();
+                        }
                     } else {
                         removeBookmarkUrl(url);
                     }
@@ -2945,6 +3154,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         lastEntry.favicon = tab.favicon;
                         if (sidebarMode === 'history') {
                             renderHistory();
+                        }
+                        if (sidebarMode === 'bookmarks') {
+                            renderSidebarBookmarks();
                         }
                     }
                 }
