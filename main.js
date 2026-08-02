@@ -168,26 +168,93 @@ let downloadAskLocation = false;
 let downloadIdCounter = 1;
 
 function createWindow() {
-  // 創建主瀏覽器視窗
   mainWindow = new BrowserWindow({
-    // ... 其他設定
+    width: 1000,
+    height: 560,
+    minWidth: 1000,
+    minHeight: 560,
+
+    // 隱藏 Windows 預設選單列
+    autoHideMenuBar: true,
+
     icon: APP_ICON_PATH,
+
     webPreferences: {
-      // 允許 renderer.js 使用 require('electron').ipcRenderer
       nodeIntegration: true,
       contextIsolation: false,
       preload: path.join(__dirname, 'preload.js'),
-      
-      // >>> 確保這行存在並設定為 true <<<
-      webviewTag: true 
+      webviewTag: true
     }
   });
 
-  // 載入應用程式的 HTML 介面
+  // =========================================================
+  // 移除 File / Edit / View / Window / Help
+  // =========================================================
+
+  //mainWindow.setMenu(null);
+  mainWindow.setMenuBarVisibility(false);
+
+  // =========================================================
+  // 正式版禁止 DevTools
+  // =========================================================
+
+  if (app.isPackaged) {
+
+    // 如果 DevTools 因任何原因被開啟，立即關閉
+    mainWindow.webContents.on('devtools-opened', () => {
+      mainWindow.webContents.closeDevTools();
+    });
+
+    // 阻擋常見 DevTools 快捷鍵
+    mainWindow.webContents.on('before-input-event', (event, input) => {
+
+      const key = input.key.toLowerCase();
+
+      // F12
+      if (key === 'f12') {
+        event.preventDefault();
+        return;
+      }
+
+      // Ctrl + Shift + I
+      if (
+        input.control &&
+        input.shift &&
+        key === 'i'
+      ) {
+        event.preventDefault();
+        return;
+      }
+
+      // Ctrl + Shift + J
+      if (
+        input.control &&
+        input.shift &&
+        key === 'j'
+      ) {
+        event.preventDefault();
+        return;
+      }
+
+      // Ctrl + Shift + C
+      if (
+        input.control &&
+        input.shift &&
+        key === 'c'
+      ) {
+        event.preventDefault();
+        return;
+      }
+    });
+  }
+
+  // 載入應用程式
   mainWindow.loadFile('index.html');
 
-  // 您可以在此開啟開發者工具進行調試
-  // mainWindow.webContents.openDevTools();
+  // 僅開發模式允許手動開 DevTools
+  if (!app.isPackaged) {
+    // mainWindow.webContents.openDevTools();
+  }
 }
 
 // 當 Electron 準備就緒時，創建視窗

@@ -219,6 +219,7 @@
             border-color: #fff;
             border-radius: 0;
         }
+        #bookmark-button,
         #go-button {
             padding: 0;
             cursor: pointer;
@@ -234,9 +235,22 @@
             box-sizing: border-box;
             align-self: center;
         }
+        #bookmark-button {
+            display: none;
+        }
+        #bookmark-button.visible {
+            display: flex;
+        }
+        #bookmark-button.bookmarked,
+        #bookmark-button.bookmarked:hover {
+            background-color: #ffffff;
+            color: #000000;
+        }
+        #bookmark-button:hover,
         #go-button:hover {
             background-color: #151515;
         }
+        #bookmark-button .material-symbols-sharp,
         #go-button .material-symbols-sharp {
             font-variation-settings:
             'FILL' 1,
@@ -1025,6 +1039,9 @@
         </button>
 
         <input type="text" id="address-input" value="" placeholder="輸入網址或 AI 指令">
+        <button id="bookmark-button" type="button" title="加入書籤" aria-pressed="false">
+            <span id="bookmark-icon" class="material-symbols-sharp">bookmark</span>
+        </button>
         <button id="go-button">
             <span class="material-symbols-sharp">send</span>
         </button>

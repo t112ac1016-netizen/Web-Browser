@@ -384,6 +384,10 @@ window.addEventListener("DOMContentLoaded", () => {
         localStorage.setItem("pinned-urls", JSON.stringify(urls));
     }
 
+    function shouldShowPinnedBookmarks() {
+        return localStorage.getItem("pinned-bookmarks-display") === "true";
+    }
+
     // 渲染釘選網址按鈕
     function renderPinnedButtons() {
         pinnedButtonsContainer.innerHTML = "";
@@ -424,6 +428,24 @@ window.addEventListener("DOMContentLoaded", () => {
             wrapper.appendChild(menuBtn);
             pinnedButtonsContainer.appendChild(wrapper);
         });
+
+        if (shouldShowPinnedBookmarks()) {
+            const bookmarksButton = document.createElement("button");
+            bookmarksButton.className = "pinned-button";
+            bookmarksButton.type = "button";
+            bookmarksButton.textContent = "書籤";
+            bookmarksButton.addEventListener("click", () => {
+                localStorage.setItem("personal-center-selected-panel", "panel-bookmarks");
+                if (window.MiniBrowserAPI && window.MiniBrowserAPI.openPersonalCenterBookmarks) {
+                    window.MiniBrowserAPI.openPersonalCenterBookmarks();
+                } else if (window.MiniBrowserAPI && window.MiniBrowserAPI.navigateToUrl) {
+                    window.MiniBrowserAPI.navigateToUrl("./personal-center.html#bookmarks");
+                } else {
+                    window.location.href = "../personal-center.html#bookmarks";
+                }
+            });
+            pinnedButtonsContainer.appendChild(bookmarksButton);
+        }
         
         // 新增按鈕（固定顯示）
         const addButton = document.createElement("button");

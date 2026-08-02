@@ -25,6 +25,9 @@ contextBridge.exposeInMainWorld("MiniBrowserAPI", {
     openDownloads() {
         ipcRenderer.sendToHost("open-downloads");
     },
+    openPersonalCenterBookmarks() {
+        ipcRenderer.sendToHost("open-personal-center-bookmarks");
+    },
     /** 向宿主請求最新歷史與書籤資料（個人中心頁） */
     refreshPersonalCenter() {
         ipcRenderer.sendToHost("request-personal-center-data");
@@ -32,5 +35,9 @@ contextBridge.exposeInMainWorld("MiniBrowserAPI", {
     /** 刪除一筆全域歷史（url + timestamp + tabId 需與宿主一致） */
     deleteHistoryEntry(entry) {
         ipcRenderer.sendToHost("delete-history-entry", entry);
+    },
+    /** 刪除一筆書籤 */
+    deleteBookmark(url) {
+        ipcRenderer.sendToHost("delete-bookmark", url);
     }
 });

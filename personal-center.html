@@ -556,6 +556,20 @@
 
                     const thumbWrap = document.createElement('div');
                     thumbWrap.className = 'pc-thumb-wrap';
+
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.type = 'button';
+                    deleteBtn.className = 'pc-delete-btn';
+                    deleteBtn.title = '刪除';
+                    deleteBtn.innerHTML = '<span class="material-symbols-outlined">close</span>';
+                    deleteBtn.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        if (window.MiniBrowserAPI && typeof MiniBrowserAPI.deleteBookmark === 'function') {
+                            MiniBrowserAPI.deleteBookmark(item.url);
+                        }
+                    });
+
                     const img = document.createElement('img');
                     img.className = 'pc-thumb placeholder';
                     img.alt = '';
@@ -565,6 +579,7 @@
                         '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="%234a9eff"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>'
                     );
                     thumbWrap.appendChild(img);
+                    thumbWrap.appendChild(deleteBtn);
 
                     const body = document.createElement('div');
                     body.className = 'pc-card-body';
@@ -583,8 +598,12 @@
                     function go() {
                         openUrl(item.url);
                     }
-                    card.addEventListener('click', go);
+                    card.addEventListener('click', function (e) {
+                        if (e.target.closest('.pc-delete-btn')) return;
+                        go();
+                    });
                     card.addEventListener('keydown', function (e) {
+                        if (e.target !== card) return;
                         if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
                             go();
@@ -646,7 +665,7 @@
 
             updateHistorySortButtons();
             updateHistoryViewMode();
-            switchPanel(localStorage.getItem(SELECTED_PANEL_KEY) === 'panel-bookmarks' ? 'panel-bookmarks' : 'panel-history');
+            switchPanel(location.hash === '#bookmarks' || localStorage.getItem(SELECTED_PANEL_KEY) === 'panel-bookmarks' ? 'panel-bookmarks' : 'panel-history');
         })();
     </script>
 </body>

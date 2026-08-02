@@ -12,6 +12,8 @@ try {
 
 document.addEventListener('DOMContentLoaded', () => {
     const addressInput = document.getElementById('address-input');
+    const bookmarkButton = document.getElementById('bookmark-button');
+    const bookmarkIcon = document.getElementById('bookmark-icon');
     const goButton = document.getElementById('go-button');
     const downloadsButton = document.getElementById('downloads-button');
     const navBack = document.getElementById('nav-back');
@@ -273,6 +275,60 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function getBookmarkUrlFromAddressInput() {
+        if (!addressInput) return '';
+        const raw = addressInput.value.trim();
+        if (!raw || raw === 'about:blank' || raw.startsWith('javascript:')) return '';
+        if (/\s/.test(raw)) return '';
+
+        const hasSupportedScheme = raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('file://');
+        const hasLocalPath = raw.startsWith('./');
+        const hasDomain = /^[^/:]+\.[^/:]+/.test(raw);
+        const hasLocalhost = /^localhost(?::\d+)?(?:\/|$)/i.test(raw);
+        const hasIPv4 = /^(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?(?:\/|$)/.test(raw);
+        if (!hasSupportedScheme && !hasLocalPath && !hasDomain && !hasLocalhost && !hasIPv4) return '';
+
+        let url = raw;
+        if (
+            !url.startsWith('http://') &&
+            !url.startsWith('https://') &&
+            !url.startsWith('./') &&
+            !url.startsWith('file://')
+        ) {
+            url = 'http://' + url;
+        }
+
+        if (isHomePage(url) || isSettingsPage(url) || isPersonalCenterPage(url)) return '';
+        return url;
+    }
+
+    function updateBookmarkButtonState() {
+        if (!bookmarkButton || !bookmarkIcon) return;
+        const url = getBookmarkUrlFromAddressInput();
+        const visible = !!url;
+        const bookmarked = visible && isUrlPinned(url);
+
+        bookmarkButton.classList.toggle('visible', visible);
+        bookmarkButton.classList.toggle('bookmarked', bookmarked);
+        bookmarkButton.setAttribute('aria-pressed', bookmarked ? 'true' : 'false');
+        bookmarkButton.title = bookmarked ? '移除書籤' : '加入書籤';
+        bookmarkIcon.textContent = bookmarked ? 'bookmark_check' : 'bookmark';
+    }
+
+    function syncTabPinnedState(tab) {
+        if (!tab || !tab.url) return;
+        tab.pinned = isUrlPinned(tab.url);
+    }
+
+    function syncPinnedStateForUrl(url) {
+        if (!url) return;
+        tabs.forEach(tab => {
+            if (tab.url === url) {
+                syncTabPinnedState(tab);
+            }
+        });
+    }
+
     function closeActiveToolPage() {
         const tab = getActiveTab();
         if (!tab || (!isSettingsPage(tab.url) && !isPersonalCenterPage(tab.url))) return;
@@ -308,6 +364,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!tab || !tab.url) {
             addressInput.value = '';
             addressInput.placeholder = '輸入網址或 AI 指令';
+            updateBookmarkButtonState();
             renderPageBreadcrumb();
             return;
         }
@@ -319,6 +376,7 @@ document.addEventListener('DOMContentLoaded', () => {
             addressInput.value = tab.url;
             addressInput.placeholder = '輸入網址或 AI 指令';
         }
+        updateBookmarkButtonState();
         renderPageBreadcrumb();
     }
 
@@ -1456,6 +1514,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         tab.url = url;
         tab.lastHistoryUrl = url;
+        syncTabPinnedState(tab);
         if (overrideTitle) {
             tab.title = overrideTitle;
         }
@@ -1560,6 +1619,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tab.historyIndex = 0;
         tab.url = finalUrl;
         tab.lastHistoryUrl = finalUrl;
+        syncTabPinnedState(tab);
 
         // 如果這個分頁是活動分頁，更新 webview
         if (wasActive) {
@@ -1590,6 +1650,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const url = tab.history[tab.historyIndex];
         tab.url = url;
         tab.lastHistoryUrl = url;
+        syncTabPinnedState(tab);
 
         historyJumpInProgress = true;
         webview.src = url;
@@ -1606,6 +1667,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const url = tab.history[tab.historyIndex];
         tab.url = url;
         tab.lastHistoryUrl = url;
+        syncTabPinnedState(tab);
 
         historyJumpInProgress = true;
         webview.src = url;
@@ -1664,6 +1726,7 @@ document.addEventListener('DOMContentLoaded', () => {
             suppressNextHistoryUpdate = false;
             tab.url = url;
             tab.lastHistoryUrl = url;
+            syncTabPinnedState(tab);
             renderTabs();
             updateNavButtons();
             updateBreadcrumbOnNavigation(url, 'jump');
@@ -1671,6 +1734,7 @@ document.addEventListener('DOMContentLoaded', () => {
             historyJumpInProgress = false;
             tab.url = url;
             tab.lastHistoryUrl = url;
+            syncTabPinnedState(tab);
             renderTabs();
             updateNavButtons();
             updateBreadcrumbOnNavigation(url, 'jump');
@@ -1688,6 +1752,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 tab.historyIndex = tab.history.length - 1;
                 tab.url = url;
                 tab.lastHistoryUrl = url;
+                syncTabPinnedState(tab);
                 renderTabs();
                 updateNavButtons();
                 updateBreadcrumbOnNavigation(url, 'new');
@@ -1774,12 +1839,16 @@ document.addEventListener('DOMContentLoaded', () => {
             pinnedTabUrls.push(url);
             savePinnedTabs();
         }
+        syncPinnedStateForUrl(url);
+        updateBookmarkButtonState();
     }
 
     function removePinnedUrl(url) {
         if (!url) return;
         pinnedTabUrls = pinnedTabUrls.filter(u => u !== url);
         savePinnedTabs();
+        syncPinnedStateForUrl(url);
+        updateBookmarkButtonState();
     }
 
     function toggleTabPinned(tabId) {
@@ -1794,6 +1863,7 @@ document.addEventListener('DOMContentLoaded', () => {
             addPinnedUrl(tab.url);
         }
         renderTabs();
+        injectPersonalCenterBookmarks();
     }
 
     // 側邊欄調整寬度（拖動）
@@ -2008,6 +2078,8 @@ document.addEventListener('DOMContentLoaded', () => {
         addressInput.select();
     });
 
+    addressInput.addEventListener('input', updateBookmarkButtonState);
+
     // 地址列拖拽處理
     addressInput.addEventListener('dragover', (e) => {
         e.preventDefault();
@@ -2031,8 +2103,25 @@ document.addEventListener('DOMContentLoaded', () => {
         if (text) {
             addressInput.value = text;
             addressInput.select();
+            updateBookmarkButtonState();
         }
     });
+
+    if (bookmarkButton) {
+        bookmarkButton.addEventListener('click', () => {
+            const url = getBookmarkUrlFromAddressInput();
+            if (!url) return;
+
+            if (isUrlPinned(url)) {
+                removePinnedUrl(url);
+            } else {
+                addPinnedUrl(url);
+            }
+            renderTabs();
+            injectPersonalCenterBookmarks();
+            updateBookmarkButtonState();
+        });
+    }
 
     goButton.addEventListener('click', navigateFromAddressBar);
     addressInput.addEventListener('keypress', (e) => {
@@ -2376,6 +2465,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 showDownloadsPanel();
                 break;
             }
+            case 'open-personal-center-bookmarks': {
+                console.log('Opening personal center bookmarks...');
+                openToolPage('./personal-center.html#bookmarks', '個人中心');
+                break;
+            }
             case 'open-in-new-tab': {
                 console.log('open-in-new-tab', event.args[0]);
                 const url = event.args[0];
@@ -2407,6 +2501,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const payload = event.args[0];
                 if (payload && payload.url && payload.timestamp != null) {
                     void removeGlobalHistoryEntry(payload);
+                }
+                break;
+            }
+            case 'delete-bookmark': {
+                const url = event.args[0];
+                if (typeof url === 'string' && url) {
+                    removePinnedUrl(url);
+                    renderTabs();
+                    injectPersonalCenterBookmarks();
                 }
                 break;
             }
@@ -2445,6 +2548,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (url && url !== 'about:blank' && !url.startsWith('javascript:')) {
             // 自動更新地址欄
             addressInput.value = url;
+            updateBookmarkButtonState();
             // 導航會自動進行，不需要阻止
             // 確保導航正常進行
         }

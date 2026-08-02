@@ -4,6 +4,7 @@ window.addEventListener("DOMContentLoaded", () => {
     const newSiteInput = document.getElementById("new-site-input");
     const addSiteBtn = document.getElementById("add-site-btn");
     const startupHomeUrlInput = document.getElementById("startup-home-url-input");
+    const pinnedBookmarksDisplayToggle = document.getElementById("pinned-bookmarks-display-toggle");
 
     // 載入現有設定
     const saved = localStorage.getItem("search-engine") || "google";
@@ -114,6 +115,12 @@ window.addEventListener("DOMContentLoaded", () => {
         startupHomeUrlInput.value = localStorage.getItem("startup-home-url") || "";
         startupHomeUrlInput.addEventListener("change", () => {
             localStorage.setItem("startup-home-url", startupHomeUrlInput.value.trim());
+        });
+    }
+    if (pinnedBookmarksDisplayToggle) {
+        pinnedBookmarksDisplayToggle.checked = localStorage.getItem("pinned-bookmarks-display") === "true";
+        pinnedBookmarksDisplayToggle.addEventListener("change", () => {
+            localStorage.setItem("pinned-bookmarks-display", pinnedBookmarksDisplayToggle.checked ? "true" : "false");
         });
     }
 });
