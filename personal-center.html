@@ -195,6 +195,50 @@
             white-space: nowrap;
             justify-self: end;
         }
+        .pc-bookmark-list.list-view {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            width: 100%;
+        }
+        .pc-bookmark-list.list-view .pc-card {
+            display: grid;
+            grid-template-columns: 82px minmax(0, 1fr);
+            min-height: 56px;
+            width: 100%;
+        }
+        .pc-bookmark-list.list-view .pc-card:hover {
+            transform: none;
+        }
+        .pc-bookmark-list.list-view .pc-thumb-wrap {
+            aspect-ratio: auto;
+            min-height: 56px;
+        }
+        .pc-bookmark-list.list-view .pc-thumb.placeholder {
+            padding: 14px;
+        }
+        .pc-bookmark-list.list-view .pc-card-body {
+            padding: 7px 12px;
+            min-width: 0;
+        }
+        .pc-bookmark-list.list-view .pc-title {
+            font-size: 13px;
+            -webkit-line-clamp: 1;
+        }
+        .pc-bookmark-list.list-view .pc-url {
+            margin-top: 2px;
+            font-size: 11px;
+            -webkit-line-clamp: 1;
+        }
+        .pc-bookmark-list.list-view .pc-delete-btn {
+            top: 5px;
+            right: 5px;
+            width: 22px;
+            height: 22px;
+        }
+        .pc-bookmark-list.list-view .pc-delete-btn .material-symbols-outlined {
+            font-size: 14px;
+        }
         .pc-card {
             background: #252525;
             border: 1px solid #3a3a3a;
@@ -236,6 +280,26 @@
         .pc-delete-btn .material-symbols-outlined {
             font-size: 18px;
             font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .pc-bookmarks-sections {
+            display: block;
+        }
+        .pc-bookmark-section + .pc-bookmark-section {
+            border-top: 1px solid #3a3a3a;
+            margin-top: 22px;
+            padding-top: 22px;
+        }
+        .pc-bookmark-heading {
+            margin: 0 0 12px;
+            font-size: 15px;
+            font-weight: 600;
+            color: #f0f0f0;
+        }
+        .pc-bookmark-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 16px;
+            align-items: start;
         }
         .pc-thumb {
             width: 100%;
@@ -305,6 +369,14 @@
         </button>
     </div>
 
+    <div class="pc-sortbar" id="bookmarks-viewbar" style="display: none;">
+        <div class="pc-sort-spacer"></div>
+        <button type="button" class="pc-sort-btn" id="bookmarks-view-mode" title="切換外觀">
+            <span class="material-symbols-sharp" id="bookmarks-view-mode-icon">calendar_view_month</span>
+            <span id="bookmarks-view-mode-text">方塊</span>
+        </button>
+    </div>
+
     <div class="pc-panels">
         <section class="pc-panel active" id="panel-history" aria-label="歷史紀錄">
             <div id="history-grid" class="pc-grid pc-history-grid"></div>
@@ -312,7 +384,7 @@
         </section>
         <section class="pc-panel" id="panel-bookmarks" aria-label="書籤">
             <div id="bookmarks-grid" class="pc-grid"></div>
-            <div id="bookmarks-empty" class="pc-empty" style="display: none;">尚無釘選書籤（可在分頁列釘選分頁）</div>
+            <div id="bookmarks-empty" class="pc-empty" style="display: none;">尚無書籤、釘選網址或釘選頁面</div>
         </section>
     </div>
 
@@ -327,16 +399,21 @@
             const panelHistory = document.getElementById('panel-history');
             const panelBookmarks = document.getElementById('panel-bookmarks');
             const historySortbar = document.getElementById('history-sortbar');
+            const bookmarksViewbar = document.getElementById('bookmarks-viewbar');
             const historySortModeBtn = document.getElementById('history-sort-mode');
             const historySortOrderBtn = document.getElementById('history-sort-order');
             const historyViewModeBtn = document.getElementById('history-view-mode');
+            const bookmarksViewModeBtn = document.getElementById('bookmarks-view-mode');
             const historySortModeText = document.getElementById('history-sort-mode-text');
             const historySortOrderText = document.getElementById('history-sort-order-text');
             const historyViewModeIcon = document.getElementById('history-view-mode-icon');
             const historyViewModeText = document.getElementById('history-view-mode-text');
+            const bookmarksViewModeIcon = document.getElementById('bookmarks-view-mode-icon');
+            const bookmarksViewModeText = document.getElementById('bookmarks-view-mode-text');
             const SELECTED_PANEL_KEY = 'personal-center-selected-panel';
             const HISTORY_SORT_KEY = 'personal-center-history-sort';
             const HISTORY_VIEW_KEY = 'personal-center-history-view';
+            const BOOKMARKS_VIEW_KEY = 'personal-center-bookmarks-view';
             const HISTORY_SORT_MODES = ['time', 'title', 'visits'];
             const HISTORY_SORT_LABELS = {
                 time: { mode: '時間', asc: '舊到新', desc: '新到舊' },
@@ -351,6 +428,7 @@
             let currentHistoryEntries = [];
             let historySortState = loadHistorySortState();
             let historyViewMode = loadHistoryViewMode();
+            let bookmarksViewMode = loadBookmarksViewMode();
 
             function openUrl(url) {
                 if (!url || url.startsWith('javascript:')) return;
@@ -391,6 +469,14 @@
                 localStorage.setItem(HISTORY_VIEW_KEY, historyViewMode);
             }
 
+            function loadBookmarksViewMode() {
+                return localStorage.getItem(BOOKMARKS_VIEW_KEY) === 'list' ? 'list' : 'grid';
+            }
+
+            function saveBookmarksViewMode() {
+                localStorage.setItem(BOOKMARKS_VIEW_KEY, bookmarksViewMode);
+            }
+
             function updateHistorySortButtons() {
                 const labels = HISTORY_SORT_LABELS[historySortState.mode];
                 historySortModeText.textContent = labels.mode;
@@ -403,6 +489,16 @@
                 historyViewModeIcon.textContent = isList ? 'lists' : 'calendar_view_month';
                 historyViewModeIcon.classList.toggle('list-icon', isList);
                 historyViewModeText.textContent = isList ? '清單' : '方塊';
+            }
+
+            function updateBookmarksViewMode() {
+                const isList = bookmarksViewMode === 'list';
+                document.querySelectorAll('.pc-bookmark-list').forEach(function (grid) {
+                    grid.classList.toggle('list-view', isList);
+                });
+                bookmarksViewModeIcon.textContent = isList ? 'lists' : 'calendar_view_month';
+                bookmarksViewModeIcon.classList.toggle('list-icon', isList);
+                bookmarksViewModeText.textContent = isList ? '清單' : '方塊';
             }
 
             function getHistorySortValue(entry) {
@@ -541,77 +637,109 @@
                 drawHistory(sortHistoryEntries(currentHistoryEntries));
             }
 
-            function renderBookmarks(list) {
+            function createBookmarkCard(item, type) {
+                const card = document.createElement('article');
+                card.className = 'pc-card';
+                card.setAttribute('role', 'button');
+                card.tabIndex = 0;
+
+                const thumbWrap = document.createElement('div');
+                thumbWrap.className = 'pc-thumb-wrap';
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.type = 'button';
+                deleteBtn.className = 'pc-delete-btn';
+                deleteBtn.title = '刪除';
+                deleteBtn.innerHTML = '<span class="material-symbols-outlined">close</span>';
+                deleteBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    if (window.MiniBrowserAPI && typeof MiniBrowserAPI.deleteBookmark === 'function') {
+                        MiniBrowserAPI.deleteBookmark({ url: item.url, type: type });
+                    }
+                });
+
+                const img = document.createElement('img');
+                img.className = 'pc-thumb placeholder';
+                img.alt = '';
+                img.loading = 'lazy';
+                img.decoding = 'async';
+                img.src = 'data:image/svg+xml,' + encodeURIComponent(
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="%234a9eff"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>'
+                );
+                thumbWrap.appendChild(img);
+                thumbWrap.appendChild(deleteBtn);
+
+                const body = document.createElement('div');
+                body.className = 'pc-card-body';
+                const title = document.createElement('div');
+                title.className = 'pc-title';
+                title.textContent = item.title || item.url;
+                const urlEl = document.createElement('div');
+                urlEl.className = 'pc-url';
+                urlEl.textContent = item.url;
+
+                body.appendChild(title);
+                body.appendChild(urlEl);
+                card.appendChild(thumbWrap);
+                card.appendChild(body);
+
+                function go() {
+                    openUrl(item.url);
+                }
+                card.addEventListener('click', function (e) {
+                    if (e.target.closest('.pc-delete-btn')) return;
+                    go();
+                });
+                card.addEventListener('keydown', function (e) {
+                    if (e.target !== card) return;
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        go();
+                    }
+                });
+
+                return card;
+            }
+
+            function appendBookmarkSection(title, items, type) {
+                if (!items || items.length === 0) return;
+                const section = document.createElement('section');
+                section.className = 'pc-bookmark-section';
+
+                const heading = document.createElement('h3');
+                heading.className = 'pc-bookmark-heading';
+                heading.textContent = title;
+
+                const grid = document.createElement('div');
+                grid.className = 'pc-bookmark-list';
+                grid.classList.toggle('list-view', bookmarksViewMode === 'list');
+                items.forEach(function (item) {
+                    grid.appendChild(createBookmarkCard(item, type));
+                });
+
+                section.appendChild(heading);
+                section.appendChild(grid);
+                bookmarksGrid.appendChild(section);
+            }
+
+            function renderBookmarks(payload) {
                 bookmarksGrid.innerHTML = '';
-                if (!list || list.length === 0) {
+                bookmarksGrid.classList.add('pc-bookmarks-sections');
+
+                const bookmarks = Array.isArray(payload) ? payload : (payload && Array.isArray(payload.bookmarks) ? payload.bookmarks : []);
+                const pinnedUrls = payload && Array.isArray(payload.pinnedUrls) ? payload.pinnedUrls : [];
+                const pinnedTabs = payload && Array.isArray(payload.pinnedTabs) ? payload.pinnedTabs : [];
+                if (bookmarks.length === 0 && pinnedUrls.length === 0 && pinnedTabs.length === 0) {
                     bookmarksEmpty.style.display = 'block';
+                    updateBookmarksViewMode();
                     return;
                 }
                 bookmarksEmpty.style.display = 'none';
-                list.forEach(function (item) {
-                    const card = document.createElement('article');
-                    card.className = 'pc-card';
-                    card.setAttribute('role', 'button');
-                    card.tabIndex = 0;
-
-                    const thumbWrap = document.createElement('div');
-                    thumbWrap.className = 'pc-thumb-wrap';
-
-                    const deleteBtn = document.createElement('button');
-                    deleteBtn.type = 'button';
-                    deleteBtn.className = 'pc-delete-btn';
-                    deleteBtn.title = '刪除';
-                    deleteBtn.innerHTML = '<span class="material-symbols-outlined">close</span>';
-                    deleteBtn.addEventListener('click', function (e) {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        if (window.MiniBrowserAPI && typeof MiniBrowserAPI.deleteBookmark === 'function') {
-                            MiniBrowserAPI.deleteBookmark(item.url);
-                        }
-                    });
-
-                    const img = document.createElement('img');
-                    img.className = 'pc-thumb placeholder';
-                    img.alt = '';
-                    img.loading = 'lazy';
-                    img.decoding = 'async';
-                    img.src = 'data:image/svg+xml,' + encodeURIComponent(
-                        '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="%234a9eff"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>'
-                    );
-                    thumbWrap.appendChild(img);
-                    thumbWrap.appendChild(deleteBtn);
-
-                    const body = document.createElement('div');
-                    body.className = 'pc-card-body';
-                    const title = document.createElement('div');
-                    title.className = 'pc-title';
-                    title.textContent = item.title || item.url;
-                    const urlEl = document.createElement('div');
-                    urlEl.className = 'pc-url';
-                    urlEl.textContent = item.url;
-
-                    body.appendChild(title);
-                    body.appendChild(urlEl);
-                    card.appendChild(thumbWrap);
-                    card.appendChild(body);
-
-                    function go() {
-                        openUrl(item.url);
-                    }
-                    card.addEventListener('click', function (e) {
-                        if (e.target.closest('.pc-delete-btn')) return;
-                        go();
-                    });
-                    card.addEventListener('keydown', function (e) {
-                        if (e.target !== card) return;
-                        if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            go();
-                        }
-                    });
-
-                    bookmarksGrid.appendChild(card);
-                });
+                appendBookmarkSection('書籤', bookmarks, 'bookmark');
+                appendBookmarkSection('釘選網址', pinnedUrls, 'pinned-url');
+                appendBookmarkSection('釘選頁面', pinnedTabs, 'pinned-tab');
+                updateBookmarksViewMode();
             }
 
             window.personalCenter = {
@@ -627,6 +755,8 @@
                 panelHistory.classList.toggle('active', isHistory);
                 panelBookmarks.classList.toggle('active', !isHistory);
                 historySortbar.style.display = isHistory ? 'flex' : 'none';
+                bookmarksViewbar.style.display = isHistory ? 'none' : 'flex';
+                updateBookmarksViewMode();
 
                 if (window.MiniBrowserAPI && typeof MiniBrowserAPI.refreshPersonalCenter === 'function') {
                     MiniBrowserAPI.refreshPersonalCenter();
@@ -662,9 +792,15 @@
                 saveHistoryViewMode();
                 updateHistoryViewMode();
             });
+            bookmarksViewModeBtn.addEventListener('click', function () {
+                bookmarksViewMode = bookmarksViewMode === 'list' ? 'grid' : 'list';
+                saveBookmarksViewMode();
+                updateBookmarksViewMode();
+            });
 
             updateHistorySortButtons();
             updateHistoryViewMode();
+            updateBookmarksViewMode();
             switchPanel(location.hash === '#bookmarks' || localStorage.getItem(SELECTED_PANEL_KEY) === 'panel-bookmarks' ? 'panel-bookmarks' : 'panel-history');
         })();
     </script>

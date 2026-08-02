@@ -95,6 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 釘選分頁：儲存被釘選的網址（跨重啟）
     // 僅儲存網址字串陣列，例如 ['https://example.com', ...]
     let pinnedTabUrls = [];
+    let bookmarkedUrls = [];
 
     // --- global history persistence (localStorage) ---
     const GLOBAL_HISTORY_LS_KEY = 'global-history';
@@ -306,7 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!bookmarkButton || !bookmarkIcon) return;
         const url = getBookmarkUrlFromAddressInput();
         const visible = !!url;
-        const bookmarked = visible && isUrlPinned(url);
+        const bookmarked = visible && isUrlBookmarked(url);
 
         bookmarkButton.classList.toggle('visible', visible);
         bookmarkButton.classList.toggle('bookmarked', bookmarked);
@@ -1828,6 +1829,51 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function loadBookmarks() {
+        bookmarkedUrls = [];
+        try {
+            const stored = localStorage.getItem('saved-bookmarks');
+            if (stored) {
+                const arr = JSON.parse(stored);
+                if (Array.isArray(arr)) {
+                    bookmarkedUrls = arr.filter(u => typeof u === 'string' && u.trim().length > 0);
+                }
+            }
+        } catch (e) {
+            console.warn('載入書籤失敗', e);
+            bookmarkedUrls = [];
+        }
+    }
+
+    function saveBookmarks() {
+        try {
+            localStorage.setItem('saved-bookmarks', JSON.stringify(bookmarkedUrls));
+        } catch (e) {
+            console.warn('儲存書籤失敗', e);
+        }
+    }
+
+    function isUrlBookmarked(url) {
+        if (!url) return false;
+        return bookmarkedUrls.includes(url);
+    }
+
+    function addBookmarkUrl(url) {
+        if (!url) return;
+        if (!bookmarkedUrls.includes(url)) {
+            bookmarkedUrls.push(url);
+            saveBookmarks();
+        }
+        updateBookmarkButtonState();
+    }
+
+    function removeBookmarkUrl(url) {
+        if (!url) return;
+        bookmarkedUrls = bookmarkedUrls.filter(u => u !== url);
+        saveBookmarks();
+        updateBookmarkButtonState();
+    }
+
     function isUrlPinned(url) {
         if (!url) return false;
         return pinnedTabUrls.includes(url);
@@ -2112,12 +2158,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const url = getBookmarkUrlFromAddressInput();
             if (!url) return;
 
-            if (isUrlPinned(url)) {
-                removePinnedUrl(url);
+            if (isUrlBookmarked(url)) {
+                removeBookmarkUrl(url);
             } else {
-                addPinnedUrl(url);
+                addBookmarkUrl(url);
             }
-            renderTabs();
             injectPersonalCenterBookmarks();
             updateBookmarkButtonState();
         });
@@ -2378,7 +2423,24 @@ document.addEventListener('DOMContentLoaded', () => {
     function injectPersonalCenterBookmarks() {
         if (!webview) return;
         loadPinnedTabs();
-        const list = pinnedTabUrls.map(url => {
+        loadBookmarks();
+        let pinnedHomeUrls = [];
+        try {
+            const stored = localStorage.getItem('pinned-urls');
+            const arr = stored ? JSON.parse(stored) : [];
+            if (Array.isArray(arr)) {
+                pinnedHomeUrls = arr
+                    .filter(item => item && typeof item.url === 'string' && item.url.trim().length > 0)
+                    .map(item => ({
+                        url: item.url,
+                        title: typeof item.name === 'string' && item.name.trim() ? item.name.trim() : item.url
+                    }));
+            }
+        } catch (e) {
+            console.warn('載入釘選網址失敗', e);
+            pinnedHomeUrls = [];
+        }
+        function buildBookmarkItem(url) {
             let title = url;
             for (let i = globalHistory.length - 1; i >= 0; i--) {
                 if (globalHistory[i].url === url && globalHistory[i].title) {
@@ -2394,8 +2456,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             return { url, title };
-        });
-        const js = `window.personalCenter && window.personalCenter.setBookmarks(${JSON.stringify(list)})`;
+        }
+        const payload = {
+            bookmarks: bookmarkedUrls.map(buildBookmarkItem),
+            pinnedUrls: pinnedHomeUrls,
+            pinnedTabs: pinnedTabUrls.map(buildBookmarkItem)
+        };
+        const js = `window.personalCenter && window.personalCenter.setBookmarks(${JSON.stringify(payload)})`;
         webview.executeJavaScript(js).catch(err => console.warn('inject bookmarks failed', err));
     }
 
@@ -2505,9 +2572,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             }
             case 'delete-bookmark': {
-                const url = event.args[0];
+                const payload = event.args[0];
+                const url = typeof payload === 'string' ? payload : (payload && payload.url);
+                const type = payload && payload.type;
                 if (typeof url === 'string' && url) {
-                    removePinnedUrl(url);
+                    if (type === 'pinned-tab') {
+                        removePinnedUrl(url);
+                    } else if (type === 'pinned-url') {
+                        try {
+                            const stored = localStorage.getItem('pinned-urls');
+                            const arr = stored ? JSON.parse(stored) : [];
+                            if (Array.isArray(arr)) {
+                                localStorage.setItem('pinned-urls', JSON.stringify(arr.filter(item => !item || item.url !== url)));
+                            }
+                        } catch (e) {
+                            console.warn('刪除釘選網址失敗', e);
+                        }
+                    } else {
+                        removeBookmarkUrl(url);
+                    }
                     renderTabs();
                     injectPersonalCenterBookmarks();
                 }
@@ -3293,6 +3376,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSidebarWidth();
     loadSidebarPosition();
     loadPinnedTabs();
+    loadBookmarks();
     // 從 localStorage 載入歷史紀錄（若存在）
     loadGlobalHistoryFromLocalStorage();
 

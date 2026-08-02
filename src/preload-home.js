@@ -36,8 +36,8 @@ contextBridge.exposeInMainWorld("MiniBrowserAPI", {
     deleteHistoryEntry(entry) {
         ipcRenderer.sendToHost("delete-history-entry", entry);
     },
-    /** 刪除一筆書籤 */
-    deleteBookmark(url) {
-        ipcRenderer.sendToHost("delete-bookmark", url);
+    /** 刪除一筆書籤、釘選網址或釘選頁面 */
+    deleteBookmark(bookmark) {
+        ipcRenderer.sendToHost("delete-bookmark", bookmark);
     }
 });
