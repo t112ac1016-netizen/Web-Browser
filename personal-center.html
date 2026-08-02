@@ -324,6 +324,23 @@
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
+        .pc-title-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+            min-width: 0;
+        }
+        .pc-title-favicon {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            object-fit: contain;
+            margin-top: 1px;
+        }
+        .pc-title-row .pc-title {
+            flex: 1;
+            min-width: 0;
+        }
         .pc-url {
             margin-top: 6px;
             font-size: 12px;
@@ -477,6 +494,38 @@
                 localStorage.setItem(BOOKMARKS_VIEW_KEY, bookmarksViewMode);
             }
 
+            function getFallbackFaviconUrl(url) {
+                try {
+                    return new URL(url).origin + '/favicon.ico';
+                } catch (err) {
+                    return '';
+                }
+            }
+
+            function createTitleRow(titleText, url, favicon) {
+                const titleRow = document.createElement('div');
+                titleRow.className = 'pc-title-row';
+
+                const faviconImg = document.createElement('img');
+                faviconImg.className = 'pc-title-favicon';
+                faviconImg.alt = '';
+                faviconImg.loading = 'lazy';
+                faviconImg.decoding = 'async';
+                faviconImg.referrerPolicy = 'no-referrer';
+                faviconImg.src = favicon || getFallbackFaviconUrl(url);
+                faviconImg.onerror = function () {
+                    this.style.display = 'none';
+                };
+
+                const title = document.createElement('div');
+                title.className = 'pc-title';
+                title.textContent = titleText || url || '無標題';
+
+                titleRow.appendChild(faviconImg);
+                titleRow.appendChild(title);
+                return titleRow;
+            }
+
             function updateHistorySortButtons() {
                 const labels = HISTORY_SORT_LABELS[historySortState.mode];
                 historySortModeText.textContent = labels.mode;
@@ -594,9 +643,7 @@
 
                     const body = document.createElement('div');
                     body.className = 'pc-card-body';
-                    const title = document.createElement('div');
-                    title.className = 'pc-title';
-                    title.textContent = entry.title || entry.url || '無標題';
+                    const titleRow = createTitleRow(entry.title || entry.url || '無標題', entry.url, entry.favicon);
                     const urlEl = document.createElement('div');
                     urlEl.className = 'pc-url';
                     urlEl.textContent = entry.url || '';
@@ -604,7 +651,7 @@
                     timeEl.className = 'pc-time';
                     timeEl.textContent = formatTime(entry.timestamp);
 
-                    body.appendChild(title);
+                    body.appendChild(titleRow);
                     body.appendChild(urlEl);
                     body.appendChild(timeEl);
 
@@ -672,14 +719,12 @@
 
                 const body = document.createElement('div');
                 body.className = 'pc-card-body';
-                const title = document.createElement('div');
-                title.className = 'pc-title';
-                title.textContent = item.title || item.url;
+                const titleRow = createTitleRow(item.title || item.url, item.url, item.favicon);
                 const urlEl = document.createElement('div');
                 urlEl.className = 'pc-url';
                 urlEl.textContent = item.url;
 
-                body.appendChild(title);
+                body.appendChild(titleRow);
                 body.appendChild(urlEl);
                 card.appendChild(thumbWrap);
                 card.appendChild(body);

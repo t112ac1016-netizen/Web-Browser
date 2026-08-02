@@ -1121,45 +1121,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderHistory() {
         historyList.innerHTML = '';
 
-        // 最新的放上面
-        const items = globalHistory.slice().reverse();
+        globalHistory.slice().reverse().forEach(entry => {
+            const item = createSidebarBookmarkItem({
+                url: entry.url,
+                title: entry.title || entry.url || '無標題',
+                favicon: entry.favicon || getFallbackFaviconUrl(entry.url),
+                meta: formatTime(entry.timestamp)
+            });
 
-        items.forEach(entry => {
-            const li = document.createElement('li');
-            li.className = 'history-item';
-
-            // 创建容器用于 favicon 和标题
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'history-content';
-
-            // Favicon
-            const faviconImg = document.createElement('img');
-            faviconImg.className = 'history-favicon';
-            if (entry.favicon) {
-                faviconImg.src = entry.favicon;
-                faviconImg.onerror = function() {
-                    // 如果 favicon 加载失败，使用默认图标或隐藏
-                    this.style.display = 'none';
-                };
-            } else {
-                // 如果没有 favicon，尝试从 URL 生成一个
-                try {
-                    const urlObj = new URL(entry.url);
-                    faviconImg.src = `${urlObj.origin}/favicon.ico`;
-                    faviconImg.onerror = function() {
-                        this.style.display = 'none';
-                    };
-                } catch (e) {
-                    faviconImg.style.display = 'none';
-                }
-            }
-
-            // 标题
-            const titleSpan = document.createElement('span');
-            titleSpan.className = 'history-title';
-            titleSpan.textContent = entry.title || entry.url || '無標題';
-
-            // 删除按钮
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'history-delete-btn';
             deleteBtn.innerHTML = '<span class="material-symbols-sharp">close</span>';
@@ -1169,33 +1138,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 void removeGlobalHistoryEntry(entry);
             });
 
-            // 时间
-            const timeSpan = document.createElement('span');
-            timeSpan.className = 'history-time';
-            timeSpan.textContent = formatTime(entry.timestamp);
+            const titleRow = item.querySelector('.sidebar-bookmark-title');
+            if (titleRow) {
+                titleRow.appendChild(deleteBtn);
+            }
 
-            contentDiv.appendChild(faviconImg);
-            contentDiv.appendChild(titleSpan);
-            contentDiv.appendChild(deleteBtn);
-
-            li.appendChild(contentDiv);
-            li.appendChild(timeSpan);
-
-            li.title = entry.url;
-
-            // 點擊歷史紀錄可以打開該網址（但排除删除按钮）
-            li.addEventListener('click', (e) => {
-                // 如果点击的是删除按钮，不执行打开操作
-                if (e.target.closest('.history-delete-btn')) {
-                    return;
-                }
-                openUrlFromUI(entry.url);
-                // 點完自動切回分頁模式（可依喜好拿掉）
-                sidebarMode = 'tabs';
-                renderSidebarView();
-            });
-
-            historyList.appendChild(li);
+            historyList.appendChild(item);
         });
     }
 
@@ -1217,6 +1165,23 @@ document.addEventListener('DOMContentLoaded', () => {
         return title;
     }
 
+    function getHistoryFaviconForUrl(url) {
+        for (let i = globalHistory.length - 1; i >= 0; i--) {
+            if (globalHistory[i].url === url && globalHistory[i].favicon) {
+                return globalHistory[i].favicon;
+            }
+        }
+        return getFallbackFaviconUrl(url);
+    }
+
+    function getFallbackFaviconUrl(url) {
+        try {
+            return `${new URL(url).origin}/favicon.ico`;
+        } catch (err) {
+            return '';
+        }
+    }
+
     function loadPinnedHomeUrlItems() {
         try {
             const stored = localStorage.getItem('pinned-urls');
@@ -1226,7 +1191,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 .filter(item => item && typeof item.url === 'string' && item.url.trim().length > 0)
                 .map(item => ({
                     url: item.url,
-                    title: typeof item.name === 'string' && item.name.trim() ? item.name.trim() : item.url
+                    title: typeof item.name === 'string' && item.name.trim() ? item.name.trim() : item.url,
+                    favicon: getHistoryFaviconForUrl(item.url)
                 }));
         } catch (e) {
             console.warn('載入釘選網址失敗', e);
@@ -1238,9 +1204,9 @@ document.addEventListener('DOMContentLoaded', () => {
         loadBookmarks();
         loadPinnedTabs();
         return {
-            bookmarks: bookmarkedUrls.map(url => ({ url, title: getHistoryTitleForUrl(url) })),
+            bookmarks: bookmarkedUrls.map(url => ({ url, title: getHistoryTitleForUrl(url), favicon: getHistoryFaviconForUrl(url) })),
             pinnedUrls: loadPinnedHomeUrlItems(),
-            pinnedTabs: pinnedTabUrls.map(url => ({ url, title: getHistoryTitleForUrl(url) }))
+            pinnedTabs: pinnedTabUrls.map(url => ({ url, title: getHistoryTitleForUrl(url), favicon: getHistoryFaviconForUrl(url) }))
         };
     }
 
@@ -1265,12 +1231,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const title = document.createElement('div');
         title.className = 'sidebar-bookmark-title';
-        title.textContent = item.title || item.url;
+
+        const favicon = document.createElement('img');
+        favicon.className = 'sidebar-bookmark-favicon';
+        favicon.alt = '';
+        favicon.loading = 'lazy';
+        favicon.decoding = 'async';
+        favicon.referrerPolicy = 'no-referrer';
+        favicon.src = item.favicon || getFallbackFaviconUrl(item.url);
+        favicon.onerror = function() {
+            this.style.display = 'none';
+        };
+
+        const titleText = document.createElement('span');
+        titleText.className = 'sidebar-bookmark-title-text';
+        titleText.textContent = item.title || item.url;
 
         const url = document.createElement('div');
         url.className = 'sidebar-bookmark-url';
-        url.textContent = item.url;
+        url.textContent = item.meta || item.url;
 
+        title.appendChild(favicon);
+        title.appendChild(titleText);
         button.appendChild(title);
         button.appendChild(url);
         button.addEventListener('click', () => {
@@ -2639,7 +2621,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     .filter(item => item && typeof item.url === 'string' && item.url.trim().length > 0)
                     .map(item => ({
                         url: item.url,
-                        title: typeof item.name === 'string' && item.name.trim() ? item.name.trim() : item.url
+                        title: typeof item.name === 'string' && item.name.trim() ? item.name.trim() : item.url,
+                        favicon: getHistoryFaviconForUrl(item.url)
                     }));
             }
         } catch (e) {
@@ -2661,7 +2644,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     /* keep url */
                 }
             }
-            return { url, title };
+            return { url, title, favicon: getHistoryFaviconForUrl(url) };
         }
         const payload = {
             bookmarks: bookmarkedUrls.map(buildBookmarkItem),

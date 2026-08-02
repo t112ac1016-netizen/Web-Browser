@@ -680,6 +680,21 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 0;
+        }
+        .sidebar-bookmark-favicon {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            object-fit: contain;
+        }
+        .sidebar-bookmark-title-text {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .sidebar-bookmark-url {
             margin-top: 3px;
@@ -842,6 +857,23 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+        #history-list {
+            padding: 4px 8px 12px;
+            background: #2A2A2A;
+        }
+        #history-list .sidebar-bookmark-item {
+            box-sizing: border-box;
+        }
+        #history-list .history-delete-btn {
+            margin-left: auto;
+            opacity: 0;
+        }
+        #history-list .sidebar-bookmark-item:hover .history-delete-btn {
+            opacity: 1;
+        }
+        #history-list .history-delete-btn:hover {
+            background-color: #e0e0e0;
         }
 
         /* webview 容器 */
