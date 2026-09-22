@@ -8,6 +8,8 @@ const APP_ICON_PATH = path.join(__dirname, 'src', 'browser-icon.png');
 
 let historyThumbsDir = null;
 
+app.setAppUserModelId('com.lmsgmaes.wb');
+
 if (!app.isReady()) {
     protocol.registerSchemesAsPrivileged([
         {
@@ -411,3 +413,19 @@ ipcMain.on('set-download-ask-location', (event, value) => {
     downloadAskLocation = !!value;
     console.log('[set-download-ask-location]', downloadAskLocation);
 });
+
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) {
+        mainWindow.restore();
+      }
+
+      mainWindow.focus();
+    }
+  });
+}
