@@ -5,6 +5,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "test:navigation": "electron tests/navigation.electron.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

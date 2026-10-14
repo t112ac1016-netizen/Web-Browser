@@ -18,7 +18,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const downloadsButton = document.getElementById('downloads-button');
     const navBack = document.getElementById('nav-back');
     const navForward = document.getElementById('nav-forward');
-    const webview = document.getElementById('webview-main');
+    const webviewTemplate = document.getElementById('webview-main');
+    let webview = null;
+    webviewTemplate.remove();
     const downloadsPanel = document.getElementById('downloads-panel');
     const downloadsPanelClose = document.getElementById('downloads-panel-close');
     const downloadsList = document.getElementById('downloads-list');
@@ -64,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let contextMenuToggleLockUntil = 0;
 
     // -------- 分頁與歷史狀態（每個分頁獨立） --------
-    let tabs = [];              // [{ id, title, url, history, historyIndex, lastHistoryUrl }]
+    let tabs = [];              // [{ id, title, url, history, historyIndex, webview }]
     let activeTabId = null;
     let nextTabId = 1;
 
@@ -72,8 +74,17 @@ document.addEventListener('DOMContentLoaded', () => {
     let globalHistory = [];     // [{ url, title, tabId, timestamp }]
 
     // 控制 did-navigate 行為
-    let suppressNextHistoryUpdate = false;
-    let historyJumpInProgress = false;
+    if (ipcRenderer) {
+        ipcRenderer.on('tab-history-updated', (_event, state) => {
+            const tab = tabs.find(item => item.webContentsId === state.webContentsId);
+            if (tab) applyNativeHistory(tab, state);
+        });
+        ipcRenderer.on('tab-open-request', (_event, { id, url }) => {
+            if (tabs.some(tab => tab.webContentsId === id) && /^(https?|file):/i.test(url)) {
+                createTab(url);
+            }
+        });
+    }
 
     // 側邊欄模式：'tabs'、'bookmarks'、'history' 或 'clipboard'
     let sidebarMode = 'tabs';
@@ -136,25 +147,28 @@ document.addEventListener('DOMContentLoaded', () => {
     function isHomePage(url) {
         if (!url) return false;
         // 檢查各種可能的首頁 URL 格式
-        const normalizedUrl = url.toLowerCase();
-        return normalizedUrl === './src/home.html' || 
-               normalizedUrl.endsWith('/src/home.html') || 
-               normalizedUrl.endsWith('\\src\\home.html') ||
-               normalizedUrl.includes('home.html') && normalizedUrl.includes('src');
+        return isInternalPage(url, './src/home.html');
     }
 
     function isSettingsPage(url) {
         if (!url) return false;
-        const normalizedUrl = url.toLowerCase();
-        return normalizedUrl === './src/settings.html' ||
-               normalizedUrl.endsWith('/src/settings.html') ||
-               normalizedUrl.endsWith('\\src\\settings.html') ||
-               (normalizedUrl.includes('settings.html') && normalizedUrl.includes('src'));
+        return isInternalPage(url, './src/settings.html');
     }
 
     function isPersonalCenterPage(url) {
         if (!url) return false;
-        return url.toLowerCase().includes('personal-center.html');
+        return isInternalPage(url, './personal-center.html');
+    }
+
+    function isInternalPage(url, relativePath) {
+        try {
+            const candidate = new URL(url, window.location.href);
+            const target = new URL(relativePath, window.location.href);
+            return candidate.protocol === target.protocol && candidate.host === target.host &&
+                candidate.pathname === target.pathname;
+        } catch (err) {
+            return false;
+        }
     }
 
     function isDownloadsPage(url) {
@@ -385,10 +399,7 @@ document.addEventListener('DOMContentLoaded', () => {
         hideDownloadsPanel();
         const tab = getActiveTab();
         if (tab && (isSettingsPage(tab.url) || isPersonalCenterPage(tab.url))) {
-            if (tab.history && tab.historyIndex >= 0) {
-                tab.history[tab.historyIndex] = url;
-            }
-            navigateTo(url, { addToHistory: false, overrideTitle });
+            navigateTo(url, { replace: true, overrideTitle });
             return;
         }
         openUrlFromUI(url, { overrideTitle });
@@ -423,12 +434,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function canGoBackInActiveTab() {
         const tab = getActiveTab();
-        return !!(tab && tab.history && tab.historyIndex > 0);
+        return getAdjacentHistoryIndex(tab, -1) !== -1;
     }
 
     function canGoForwardInActiveTab() {
         const tab = getActiveTab();
-        return !!(tab && tab.history && tab.historyIndex < tab.history.length - 1);
+        return getAdjacentHistoryIndex(tab, 1) !== -1;
+    }
+
+    function getAdjacentHistoryIndex(tab, direction) {
+        if (!tab) return -1;
+        let current = tab.historyIndex;
+        if (direction < 0) {
+            while (current >= 0 && !tab.history[current].visible) current--;
+        }
+        for (let index = current + direction; index >= 0 && index < tab.history.length; index += direction) {
+            if (tab.history[index].visible) return index;
+        }
+        return -1;
     }
 
     function updateNavButtons() {
@@ -472,156 +495,98 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function ensureBreadcrumbModel(tab) {
-        if (!tab) return;
-        if (!tab.breadcrumbButtons) {
-            tab.breadcrumbButtons = [];
-            tab.breadcrumbActiveIndex = -1;
+    function applyNativeHistory(tab, state) {
+        if (!tabs.includes(tab) || state.sequence <= tab.historySequence) return;
+        tab.historySequence = state.sequence;
+        tab.historyRevision = state.revision;
+        tab.history = state.entries;
+        tab.historyIndex = state.index;
+        const current = tab.history[tab.historyIndex];
+        if (current) {
+            const previousUrl = tab.url;
+            tab.url = current.url;
+            if (current.title) tab.title = current.title;
+            else if (previousUrl !== current.url) tab.title = getHistoryEntryTitle(null, current.url);
+            syncTabPinnedState(tab);
+            if (tab.recordedRevision !== state.visitRevision) {
+                tab.recordedRevision = state.visitRevision;
+                tab.globalHistoryEntry = null;
+                if (!isHomePage(tab.url) && !isSettingsPage(tab.url) && !isPersonalCenterPage(tab.url) &&
+                    tab.url !== 'about:blank' && localStorage.getItem('incognito-mode') !== 'true') {
+                    tab.globalHistoryEntry = appendGlobalHistory(tab.url, tab);
+                }
+            }
+            const entry = tab.globalHistoryEntry;
+            if (entry && globalHistory.includes(entry) &&
+                (entry.title !== tab.title || entry.favicon !== tab.favicon)) {
+                entry.title = tab.title;
+                entry.favicon = tab.favicon;
+                saveGlobalHistoryToLocalStorage();
+                if (sidebarMode === 'history') renderHistory();
+            }
         }
-
-        // 若還沒初始化，但已有 history，先用「到目前為止的歷史」建一份按鈕
-        if (tab.breadcrumbButtons.length === 0 && tab.history && tab.history.length > 0 && tab.historyIndex >= 0) {
-            const slice = tab.history
-                .slice(0, tab.historyIndex + 1)
-                .filter(u => !isHomePage(u) && !isSettingsPage(u) && !isPersonalCenterPage(u)); // 忽略首頁/設定/個人中心
-            tab.breadcrumbButtons = slice.map(u => ({
-                url: u,
-                title: getHistoryEntryTitle(tab, u)
-            }));
-            tab.breadcrumbActiveIndex = tab.breadcrumbButtons.length - 1;
+        renderTabs();
+        if (tab.id === activeTabId) {
+            updateNavButtons();
+            updateAddressInput();
+            if (sidebarMode === 'bookmarks') renderSidebarBookmarks();
         }
     }
 
-    function updateBreadcrumbOnNavigation(url, mode) {
-        const tab = getActiveTab();
-        if (!tab) return;
-        ensureBreadcrumbModel(tab);
-        if (!url || isHomePage(url) || isSettingsPage(url) || isPersonalCenterPage(url)) return; // 忽略首頁/設定/個人中心
-
-        // mode: 'new'（進入新頁面）|'jump'（返回/前進/其它跳轉）
-        if (mode === 'new') {
-            tab.breadcrumbButtons.push({
-                url,
-                title: getHistoryEntryTitle(tab, url)
-            });
-            tab.breadcrumbActiveIndex = tab.breadcrumbButtons.length - 1;
-            return;
+    async function syncNativeHistory(tab) {
+        if (!ipcRenderer || !tab.webContentsId || !tabs.includes(tab)) return;
+        try {
+            const state = await ipcRenderer.invoke('tab-history-state', tab.webContentsId);
+            applyNativeHistory(tab, state);
+        } catch (err) {
+            if (tabs.includes(tab)) console.warn('Unable to read tab history:', err);
         }
+    }
 
-        // jump：嘗試對齊到已存在的按鈕；找不到則補一顆
-        let found = -1;
-        for (let i = tab.breadcrumbButtons.length - 1; i >= 0; i--) {
-            if (tab.breadcrumbButtons[i].url === url) {
-                found = i;
-                break;
-            }
-        }
-        if (found === -1) {
-            tab.breadcrumbButtons.push({
-                url,
-                title: getHistoryEntryTitle(tab, url)
+    async function goToHistoryIndex(tab, index) {
+        if (!tab || !ipcRenderer || !Number.isInteger(index) ||
+            index < 0 || index >= tab.history.length || index === tab.historyIndex) return;
+        try {
+            const state = await ipcRenderer.invoke('tab-history-go', {
+                id: tab.webContentsId, index, revision: tab.historyRevision
             });
-            tab.breadcrumbActiveIndex = tab.breadcrumbButtons.length - 1;
-        } else {
-            tab.breadcrumbActiveIndex = found;
+            applyNativeHistory(tab, state);
+        } catch (err) {
+            if (tabs.includes(tab)) console.warn('Unable to navigate tab history:', err);
+            void syncNativeHistory(tab);
         }
     }
 
     function renderPageBreadcrumb() {
         if (!breadcrumbBarContainer || !pageBreadcrumb) return;
         const tab = getActiveTab();
-        if (!tab) {
-            breadcrumbBarContainer.classList.remove('visible');
-            pageBreadcrumb.innerHTML = '';
-            return;
-        }
+        const entries = tab ? tab.history.map((item, index) => ({ ...item, index }))
+            .filter(item => item.visible && item.index <= tab.historyIndex) : [];
+        breadcrumbBarContainer.classList.toggle('visible', entries.length > 0);
+        pageBreadcrumb.replaceChildren();
+        if (!tab) return;
 
-        // 確保模型存在，並且移除任何指向首頁的按鈕（以防舊資料殘留）
-        ensureBreadcrumbModel(tab);
-        if (tab.breadcrumbButtons) {
-            tab.breadcrumbButtons = tab.breadcrumbButtons.filter(item =>
-                !isHomePage(item.url) && !isSettingsPage(item.url) && !isPersonalCenterPage(item.url));
-            if (tab.breadcrumbButtons.length === 0) {
-                tab.breadcrumbActiveIndex = -1;
-            } else if (tab.breadcrumbActiveIndex >= tab.breadcrumbButtons.length) {
-                tab.breadcrumbActiveIndex = tab.breadcrumbButtons.length - 1;
-            }
-        }
-
-        const hasHistory = !!(tab.history && tab.history.length > 1);
-        const canOperate = canGoBackInActiveTab() || canGoForwardInActiveTab();
-        if (!hasHistory || !canOperate || !tab.breadcrumbButtons || tab.breadcrumbButtons.length === 0) {
-            breadcrumbBarContainer.classList.remove('visible');
-            pageBreadcrumb.innerHTML = '';
-            return;
-        }
-
-        breadcrumbBarContainer.classList.add('visible');
-        pageBreadcrumb.innerHTML = '';
-
-        tab.breadcrumbButtons.forEach((item, index) => {
+        const revision = tab.historyRevision;
+        entries.forEach((item, position) => {
+            const index = item.index;
             const btn = document.createElement('button');
-            const isActive = index === tab.breadcrumbActiveIndex;
+            const isActive = position === entries.length - 1;
+            btn.type = 'button';
             btn.className = 'breadcrumb-item' + (isActive ? ' active' : '');
-
-            const title = item.title || getHistoryEntryTitle(tab, item.url);
+            btn.dataset.historyIndex = String(index);
+            if (isActive) btn.setAttribute('aria-current', 'page');
+            const title = isHomePage(item.url) ? '\u9996\u9801' :
+                ((isActive && tab.url === item.url ? tab.title : item.title) || getHistoryEntryTitle(tab, item.url));
             btn.textContent = title || item.url;
             btn.title = title ? `${title}\n${item.url}` : item.url;
-
             btn.addEventListener('click', () => {
-                const currentTab = getActiveTab();
-                if (!currentTab) return;
-
-                const targetUrl = item.url;
-                if (!targetUrl) return;
-
-                // 點到目前頁面不動作
-                if (currentTab.url === targetUrl) return;
-
-                // 需求：返回舊頁面後，舊頁面按鈕以後的新頁面按鈕刪除（只刪除按鈕，不刪除瀏覽記錄）
-                ensureBreadcrumbModel(currentTab);
-                currentTab.breadcrumbButtons = currentTab.breadcrumbButtons.slice(0, index + 1);
-                currentTab.breadcrumbActiveIndex = index;
-
-                // 同步到 historyIndex（不 slice history）
-                if (currentTab.history && currentTab.history.length > 0) {
-                    let hIndex = -1;
-                    // 優先從目前 index 往回找（更符合「返回舊頁面」）
-                    for (let i = currentTab.historyIndex; i >= 0; i--) {
-                        if (currentTab.history[i] === targetUrl) {
-                            hIndex = i;
-                            break;
-                        }
-                    }
-                    // 找不到再往前找
-                    if (hIndex === -1) {
-                        for (let i = 0; i < currentTab.history.length; i++) {
-                            if (currentTab.history[i] === targetUrl) {
-                                hIndex = i;
-                                break;
-                            }
-                        }
-                    }
-                    if (hIndex !== -1) {
-                        currentTab.historyIndex = hIndex;
-                    }
-                }
-
-                currentTab.url = targetUrl;
-                currentTab.lastHistoryUrl = targetUrl;
-
-                historyJumpInProgress = true;
-                webview.src = targetUrl;
-                renderTabs();
-                updateNavButtons();
-                updateAddressInput();
+                if (isActive || getActiveTab() !== tab || tab.historyRevision !== revision) return;
+                void goToHistoryIndex(tab, index);
             });
-
             pageBreadcrumb.appendChild(btn);
         });
-
-        // 每次渲染後重新對齊寬度
         layoutBreadcrumbBar();
+        pageBreadcrumb.scrollLeft = pageBreadcrumb.scrollWidth;
     }
 
     // 初始化對齊，並在視窗尺寸改變時重新對齊
@@ -669,14 +634,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const HISTORY_THUMB_MAX_WIDTH = 320;
     const HISTORY_THUMB_JPEG_QUALITY = 72;
 
-    async function captureCurrentPageThumbnail() {
-        if (!webview) return;
-        const tab = getActiveTab();
+    async function captureCurrentPageThumbnail(tab = getActiveTab()) {
         if (!tab || !tab.url) return;
+        const view = tab.webview;
+        const capturedUrl = tab.url;
+        const revision = tab.historyRevision;
         if (isPersonalCenterPage(tab.url)) return;
         try {
-            const image = await webview.capturePage();
-            if (!image) return;
+            const image = await view.capturePage();
+            if (!image || !tabs.includes(tab) || tab.url !== capturedUrl || tab.historyRevision !== revision) return;
 
             const size = image.getSize();
             const w = size.width || 1;
@@ -721,6 +687,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 thumbSrc = `data:image/jpeg;base64,${jpegBuffer.toString('base64')}`;
             }
 
+            if (!tabs.includes(tab) || tab.url !== capturedUrl || tab.historyRevision !== revision) return;
             historyThumbnails[makeThumbKey(tab.id, tab.url)] = thumbSrc;
             attachThumbnailToGlobalHistory(tab, thumbSrc);
             if (thumbnailViewMode) {
@@ -751,13 +718,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 hideNavPreview();
                 return;
             }
-            targetIndex = tab.historyIndex - 1;
+            targetIndex = getAdjacentHistoryIndex(tab, -1);
         } else if (type === 'forward') {
             if (!canGoForwardInActiveTab()) {
                 hideNavPreview();
                 return;
             }
-            targetIndex = tab.historyIndex + 1;
+            targetIndex = getAdjacentHistoryIndex(tab, 1);
         } else {
             hideNavPreview();
             return;
@@ -768,13 +735,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const url = tab.history[targetIndex];
+        const entry = tab.history[targetIndex];
+        const url = entry && entry.url;
         if (!url) {
             hideNavPreview();
             return;
         }
 
-        const title = getHistoryEntryTitle(tab, url);
+        const title = entry.title || getHistoryEntryTitle(tab, url);
         navPreviewTitle.textContent = title || url;
 
         if (navPreviewImage) {
@@ -1109,7 +1077,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         try {
             const wu = webview && typeof webview.getURL === 'function' ? webview.getURL() : '';
-            if (wu && wu.toLowerCase().includes('personal-center.html')) {
+            if (isPersonalCenterPage(wu)) {
                 injectPersonalCenterHistory();
             }
         } catch (err) {
@@ -1606,8 +1574,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function appendGlobalHistory(url) {
-        const tab = getActiveTab();
+    function appendGlobalHistory(url, tab = getActiveTab()) {
         const newTimestamp = new Date();
         const entry = {
             url,
@@ -1662,100 +1629,102 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         // 同步儲存到 localStorage，便於下次啟動還原
         try { saveGlobalHistoryToLocalStorage(); } catch (err) { /* ignore */ }
+        return entry;
+    }
+
+    function loadTabUrl(tab, url, options = {}) {
+        if (!tab || !tabs.includes(tab)) return;
+        const absoluteUrl = new URL(url, window.location.href).href;
+        const view = tab.webview;
+        const request = ++tab.loadRequest;
+        if (options.overrideTitle) tab.title = options.overrideTitle;
+        tab.url = absoluteUrl;
+        syncTabPinnedState(tab);
+        renderTabs();
+        if (tab.id === activeTabId) updateAddressInput();
+        if (!tab.ready) {
+            view.src = absoluteUrl;
+            return;
+        }
+        const navigation = options.replace ?
+            view.executeJavaScript(`window.location.replace(${JSON.stringify(absoluteUrl)})`) :
+            view.loadURL(absoluteUrl);
+        navigation.catch(err => {
+            if (!tabs.includes(tab) || request !== tab.loadRequest) return;
+            if (err.code !== 'ERR_ABORTED') console.warn('Tab navigation failed:', err);
+            void syncNativeHistory(tab);
+        });
     }
 
     function navigateTo(url, options = {}) {
-        const { addToHistory = true, overrideTitle } = options;
-        const tab = getActiveTab();
-        if (!tab) return;
-
-        if (!tab.history) {
-            tab.history = [];
-            tab.historyIndex = -1;
-        }
-
-        if (addToHistory) {
-            if (tab.historyIndex < tab.history.length - 1) {
-                tab.history = tab.history.slice(0, tab.historyIndex + 1);
-            }
-            tab.history.push(url);
-            tab.historyIndex = tab.history.length - 1;
-        }
-
-        tab.url = url;
-        tab.lastHistoryUrl = url;
-        syncTabPinnedState(tab);
-        if (overrideTitle) {
-            tab.title = overrideTitle;
-        }
-
-        suppressNextHistoryUpdate = true;
-        webview.src = url;
-        renderTabs();
-        updateNavButtons();
-        updateAddressInput();
+        loadTabUrl(getActiveTab(), url, options);
     }
 
     function openUrlFromUI(url, options = {}) {
-        navigateTo(url, { addToHistory: true, ...options });
+        navigateTo(url, options);
     }
 
     function createTab(initialUrl = './src/home.html', initialTitle = '新分頁') {
         const id = nextTabId++;
+        const view = webviewTemplate.cloneNode(false);
+        view.id = `webview-tab-${id}`;
+        view.style.display = 'none';
         const tab = {
             id,
             title: initialTitle,
             url: '',
             history: [],
             historyIndex: -1,
-            lastHistoryUrl: null,
+            historySequence: -1,
+            historyRevision: 0,
+            recordedRevision: -1,
+            loadRequest: 0,
+            ready: false,
+            webContentsId: null,
+            webview: view,
             favicon: null,
             pinned: isUrlPinned(initialUrl)
         };
         tabs.push(tab);
-        activeTabId = id;
-        renderTabs();
-        navigateTo(initialUrl, { addToHistory: true, overrideTitle: initialTitle });
+        bindWebviewEvents(tab);
+        bindWebviewCopyEvents(view);
+        webviewContainer.insertBefore(view, downloadsPanel);
+        activateTab(id);
+        loadTabUrl(tab, initialUrl, { overrideTitle: initialTitle });
     }
 
     function closeTab(id) {
         const index = tabs.findIndex(t => t.id === id);
         if (index === -1) return;
-
+        const tab = tabs[index];
         tabs.splice(index, 1);
-
+        tab.webview.remove();
         if (tabs.length === 0) {
             createTab();
+        } else if (id === activeTabId) {
+            activateTab(tabs[Math.min(index, tabs.length - 1)].id);
         } else {
-            if (id === activeTabId) {
-                const newIndex = Math.min(index, tabs.length - 1);
-                activeTabId = tabs[newIndex].id;
-                const newTab = getActiveTab();
-                if (newTab && newTab.url) {
-                    suppressNextHistoryUpdate = true;
-                    webview.src = newTab.url;
-                }
-                updateAddressInput();
-            }
             renderTabs();
-            updateNavButtons();
         }
     }
 
     function activateTab(id) {
-        activeTabId = id;
-        const tab = getActiveTab();
+        const tab = tabs.find(item => item.id === id);
         if (!tab) return;
-
-        if (tab.url) {
-            suppressNextHistoryUpdate = true;
-            webview.src = tab.url;
-        } else {
-            navigateTo('./src/home.html', { addToHistory: true });
+        if (webview) {
+            webview.id = `webview-tab-${activeTabId}`;
+            webview.style.display = 'none';
         }
+        activeTabId = id;
+        webview = tab.webview;
+        webview.id = 'webview-main';
+        webview.style.display = 'flex';
+        hideNavPreview();
+        hideContextMenu();
         renderTabs();
         updateNavButtons();
         updateAddressInput();
+        void syncNativeHistory(tab);
     }
 
     // 更新指定分頁的 URL
@@ -1777,73 +1746,17 @@ document.addEventListener('DOMContentLoaded', () => {
             finalUrl = 'http://' + finalUrl;
         }
 
-        const wasActive = tab.id === activeTabId;
-        
-        if (!tab.history) {
-            tab.history = [];
-            tab.historyIndex = -1;
-        }
-
-        // 清除歷史記錄，重新開始
-        tab.history = [finalUrl];
-        tab.historyIndex = 0;
-        tab.url = finalUrl;
-        tab.lastHistoryUrl = finalUrl;
-        syncTabPinnedState(tab);
-
-        // 如果這個分頁是活動分頁，更新 webview
-        if (wasActive) {
-            suppressNextHistoryUpdate = true;
-            webview.src = finalUrl;
-            addressInput.value = finalUrl;
-        }
-
-        renderTabs();
-        updateNavButtons();
-        if (wasActive) {
-            updateAddressInput();
-        }
+        loadTabUrl(tab, finalUrl);
     }
 
     function goBackInActiveTab() {
         const tab = getActiveTab();
-        if (!tab || !tab.history || tab.historyIndex <= 0) return;
-
-        // 使用者按下「上一頁」時，刪除階層位址欄中最後一個按鈕
-        ensureBreadcrumbModel(tab);
-        if (tab.breadcrumbButtons && tab.breadcrumbButtons.length > 0) {
-            tab.breadcrumbButtons.pop();
-            tab.breadcrumbActiveIndex = tab.breadcrumbButtons.length - 1;
-        }
-
-        tab.historyIndex--;
-        const url = tab.history[tab.historyIndex];
-        tab.url = url;
-        tab.lastHistoryUrl = url;
-        syncTabPinnedState(tab);
-
-        historyJumpInProgress = true;
-        webview.src = url;
-        renderTabs();
-        updateNavButtons();
-        updateAddressInput();
+        if (tab) void goToHistoryIndex(tab, getAdjacentHistoryIndex(tab, -1));
     }
 
     function goForwardInActiveTab() {
         const tab = getActiveTab();
-        if (!tab || !tab.history || tab.historyIndex >= tab.history.length - 1) return;
-
-        tab.historyIndex++;
-        const url = tab.history[tab.historyIndex];
-        tab.url = url;
-        tab.lastHistoryUrl = url;
-        syncTabPinnedState(tab);
-
-        historyJumpInProgress = true;
-        webview.src = url;
-        renderTabs();
-        updateNavButtons();
-        updateAddressInput();
+        if (tab) void goToHistoryIndex(tab, getAdjacentHistoryIndex(tab, 1));
     }
 
     function handleSearch(query) {
@@ -1885,56 +1798,7 @@ document.addEventListener('DOMContentLoaded', () => {
         openUrlFromUI(url);
     }
 
-    function onWebviewNavigation(url) {
-        const tab = getActiveTab();
-        if (!tab) {
-            appendGlobalHistory(url);
-            return;
-        }
 
-        if (suppressNextHistoryUpdate) {
-            suppressNextHistoryUpdate = false;
-            tab.url = url;
-            tab.lastHistoryUrl = url;
-            syncTabPinnedState(tab);
-            renderTabs();
-            updateNavButtons();
-            updateBreadcrumbOnNavigation(url, 'jump');
-        } else if (historyJumpInProgress) {
-            historyJumpInProgress = false;
-            tab.url = url;
-            tab.lastHistoryUrl = url;
-            syncTabPinnedState(tab);
-            renderTabs();
-            updateNavButtons();
-            updateBreadcrumbOnNavigation(url, 'jump');
-        } else {
-            if (!tab.history) {
-                tab.history = [];
-                tab.historyIndex = -1;
-            }
-
-            if (tab.lastHistoryUrl !== url) {
-                if (tab.historyIndex < tab.history.length - 1) {
-                    tab.history = tab.history.slice(0, tab.historyIndex + 1);
-                }
-                tab.history.push(url);
-                tab.historyIndex = tab.history.length - 1;
-                tab.url = url;
-                tab.lastHistoryUrl = url;
-                syncTabPinnedState(tab);
-                renderTabs();
-                updateNavButtons();
-                updateBreadcrumbOnNavigation(url, 'new');
-            }
-        }
-
-        // 注意：全域歷史記錄將在頁面標題更新時添加（確保有正確的標題和 favicon）
-        updateAddressInput();
-        if (sidebarMode === 'bookmarks') {
-            renderSidebarBookmarks();
-        }
-    }
 
     // -------- 事件綁定 --------
 
@@ -2608,7 +2472,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return entries;
     }
 
-    function injectPersonalCenterBookmarks() {
+    function injectPersonalCenterBookmarks(webview = getActiveTab()?.webview) {
         if (!webview) return;
         loadPinnedTabs();
         loadBookmarks();
@@ -2655,20 +2519,23 @@ document.addEventListener('DOMContentLoaded', () => {
         webview.executeJavaScript(js).catch(err => console.warn('inject bookmarks failed', err));
     }
 
-    function injectPersonalCenterHistory() {
+    function injectPersonalCenterHistory(webview = getActiveTab()?.webview) {
         if (!webview) return;
         const entries = buildPersonalCenterHistoryPayload();
         const js = `window.personalCenter && window.personalCenter.setHistory(${JSON.stringify(entries)})`;
         webview.executeJavaScript(js).catch(err => console.warn('inject history failed', err));
     }
 
-    function injectPersonalCenterData() {
-        injectPersonalCenterHistory();
-        injectPersonalCenterBookmarks();
+    function injectPersonalCenterData(webview = getActiveTab()?.webview) {
+        injectPersonalCenterHistory(webview);
+        injectPersonalCenterBookmarks(webview);
     }
 
     // WebView IPC（首頁搜尋 / 設定頁）
+    function bindWebviewEvents(tab) {
+    const webview = tab.webview;
     webview.addEventListener('ipc-message', (event) => {
+        if (tab.id !== activeTabId && event.channel !== 'copy-content') return;
         switch (event.channel) {
             case 'show-context-menu':
                 // 从 webview 内部触发的右键菜单
@@ -2793,23 +2660,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // WebView 導航事件
     webview.addEventListener('did-navigate', (event) => {
-        onWebviewNavigation(event.url);
+        void syncNativeHistory(tab);
     });
 
     webview.addEventListener('did-navigate-in-page', (event) => {
-        onWebviewNavigation(event.url);
+        if (event.isMainFrame) void syncNativeHistory(tab);
     });
 
     // 當頁面載入完成時，擷取當前頁面的縮圖
     webview.addEventListener('did-stop-loading', () => {
-        captureCurrentPageThumbnail();
+        void syncNativeHistory(tab).then(() => captureCurrentPageThumbnail(tab));
+    });
+
+    webview.addEventListener('did-fail-load', (event) => {
+        if (event.isMainFrame) void syncNativeHistory(tab);
     });
 
     webview.addEventListener('did-finish-load', () => {
         try {
             const u = webview.getURL() || '';
-            if (u.toLowerCase().includes('personal-center.html')) {
-                injectPersonalCenterData();
+            if (isPersonalCenterPage(u)) {
+                injectPersonalCenterData(webview);
             }
         } catch (e) {
             /* ignore */
@@ -2822,26 +2693,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const url = event.url;
         if (url && url !== 'about:blank' && !url.startsWith('javascript:')) {
             // 自動更新地址欄
-            addressInput.value = url;
-            updateBookmarkButtonState();
+            if (tab.id === activeTabId) {
+                addressInput.value = url;
+                updateBookmarkButtonState();
+            }
             // 導航會自動進行，不需要阻止
             // 確保導航正常進行
         }
     });
 
     // 處理新窗口/標籤頁打開（如搜索結果中的鏈接）
-    webview.addEventListener('new-window', (event) => {
-        // 阻止在新窗口中打開，改為創建新標籤頁
-        event.preventDefault();
-        const url = event.url;
-        if (url && url !== 'about:blank' && !url.startsWith('javascript:')) {
-            // 創建新標籤頁並打開鏈接
-            createTab(url, '新分頁');
-        }
-    });
 
     // 在 webview 加載完成後注入腳本，攔截所有鏈接點擊和右鍵事件
     webview.addEventListener('dom-ready', () => {
+        tab.ready = true;
+        tab.webContentsId = webview.getWebContentsId();
+        void syncNativeHistory(tab);
         // 注入腳本來攔截所有鏈接點擊和右鍵事件
         webview.executeJavaScript(`
             (function() {
@@ -3040,59 +2907,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }, true);
 
-                // 攔截所有鏈接點擊
-                document.addEventListener('click', function(e) {
-                    let target = e.target;
-                    // 向上查找鏈接元素
-                    while (target && target.tagName !== 'A' && target.tagName !== 'BODY' && target.tagName !== 'HTML') {
-                        target = target.parentElement;
-                    }
-                    
-                    if (target && target.tagName === 'A' && target.href) {
-                        const href = target.href;
-                        // 如果是有效的鏈接
-                        if (href && !href.startsWith('javascript:') && !href.startsWith('#') && href !== 'about:blank') {
-                            // 判斷是否在新標籤頁打開
-                            const openInNewTab = target.target === '_blank' || e.ctrlKey || e.metaKey;
-                            
-                            // 阻止默認行為
-                            e.preventDefault();
-                            e.stopPropagation();
-                            e.stopImmediatePropagation();
-                            
-                            // 使用 MiniBrowserAPI 發送消息（如果可用）
-                            if (window.MiniBrowserAPI) {
-                                try {
-                                    if (openInNewTab) {
-                                        window.MiniBrowserAPI.openInNewTab(href);
-                                    } else {
-                                        window.MiniBrowserAPI.navigateToUrl(href);
-                                    }
-                                } catch(err) {
-                                    console.warn('Failed to use MiniBrowserAPI:', err);
-                                    // 如果失敗，嘗試直接導航
-                                    window.location.href = href;
-                                }
-                            } else if (window.require) {
-                                try {
-                                    const { ipcRenderer } = window.require('electron');
-                                    if (openInNewTab) {
-                                        ipcRenderer.sendToHost('open-in-new-tab', href);
-                                    } else {
-                                        ipcRenderer.sendToHost('navigate-to-url', href);
-                                    }
-                                } catch(err) {
-                                    console.warn('Failed to send IPC message:', err);
-                                    window.location.href = href;
-                                }
-                            } else {
-                                // 如果都沒有，直接導航
-                                window.location.href = href;
-                            }
-                            return false;
-                        }
-                    }
-                }, true);
             })();
         `).catch(err => {
             console.warn('Failed to inject click handler:', err);
@@ -3101,70 +2915,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 兜底：若 webview 內部腳本未觸發，使用 webview 的 contextmenu 事件
     webview.addEventListener('contextmenu', async (event) => {
+        if (tab.id !== activeTabId) return;
         event.preventDefault();
         event.stopPropagation();
         await toggleContextMenu();
     });
 
 
-    webview.addEventListener('page-title-updated', (event) => {
-        const tab = getActiveTab();
-        if (tab) {
-            tab.title = event.title;
-            // 更新 breadcrumb 中目前頁面的顯示標題（只改最後一個符合 url 的按鈕）
-            if (tab.breadcrumbButtons && tab.url) {
-                for (let i = tab.breadcrumbButtons.length - 1; i >= 0; i--) {
-                    if (tab.breadcrumbButtons[i].url === tab.url) {
-                        tab.breadcrumbButtons[i].title = event.title;
-                        break;
-                    }
-                }
-            }
-            renderTabs();
-            renderPageBreadcrumb();
-            
-            // 在標題更新時，記錄到全域歷史（確保有正確的標題和 favicon）
-            if (tab.url && !isHomePage(tab.url) && !isSettingsPage(tab.url) && !isPersonalCenterPage(tab.url)) {
-                const incognitoMode = localStorage.getItem('incognito-mode') === 'true';
-                if (!incognitoMode) {
-                    // 檢查是否已經記錄過這個 URL（避免重複記錄）
-                    const lastEntry = globalHistory[globalHistory.length - 1];
-                    if (!lastEntry || lastEntry.url !== tab.url || lastEntry.tabId !== tab.id) {
-                        appendGlobalHistory(tab.url);
-                    } else {
-                        // 如果已經記錄過，更新標題和 favicon
-                        lastEntry.title = event.title;
-                        lastEntry.favicon = tab.favicon;
-                        if (sidebarMode === 'history') {
-                            renderHistory();
-                        }
-                        if (sidebarMode === 'bookmarks') {
-                            renderSidebarBookmarks();
-                        }
-                    }
-                }
-            }
-        }
+    webview.addEventListener('page-title-updated', () => {
+        void syncNativeHistory(tab);
     });
 
     webview.addEventListener('page-favicon-updated', (event) => {
-        const tab = getActiveTab();
-        if (tab && event.favicons && event.favicons.length > 0) {
-            tab.favicon = event.favicons[0];
-            renderTabs();
-            
-            // 更新歷史記錄中的 favicon
-            if (tab.url) {
-                const lastEntry = globalHistory[globalHistory.length - 1];
-                if (lastEntry && lastEntry.url === tab.url && lastEntry.tabId === tab.id) {
-                    lastEntry.favicon = event.favicons[0];
-                    if (sidebarMode === 'history') {
-                        renderHistory();
-                    }
-                }
-            }
+        if (!tabs.includes(tab) || !event.favicons?.length) return;
+        tab.favicon = event.favicons[0];
+        renderTabs();
+        const entry = tab.globalHistoryEntry;
+        if (entry && globalHistory.includes(entry) && entry.url === tab.url) {
+            entry.favicon = tab.favicon;
+            saveGlobalHistoryToLocalStorage();
+            if (sidebarMode === 'history') renderHistory();
         }
     });
+    }
 
     // -------- 右键菜单功能 --------
     let selectedText = '';
@@ -3597,6 +3370,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateIncognitoButton();
     
     // 監聽 webview 中的複製事件（通過注入腳本）
+    function bindWebviewCopyEvents(webview) {
     if (webview) {
         webview.addEventListener('dom-ready', () => {
             // 注入腳本來監聽複製事件
@@ -3648,5 +3422,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 })();
             `).catch(err => console.log('無法注入複製監聽腳本:', err));
         });
+    }
     }
 });

@@ -5,6 +5,7 @@ const path = require('path');
 const MAX_HISTORY_THUMBS = 280;
 const THUMB_ORDER_FILENAME = '_thumb-order.json';
 const APP_ICON_PATH = path.join(__dirname, 'src', 'browser-icon.png');
+const { registerTabNavigation } = require('./tab-navigation');
 
 let historyThumbsDir = null;
 
@@ -195,6 +196,7 @@ function createWindow() {
 
   //mainWindow.setMenu(null);
   mainWindow.setMenuBarVisibility(false);
+  registerTabNavigation(mainWindow.webContents);
 
   // =========================================================
   // 正式版禁止 DevTools

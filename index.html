@@ -215,8 +215,9 @@
             background: #1F1F1F;
         }
         .breadcrumb-item.active {
-            background: #1F1F1F;
-            border-color: #fff;
+            background: #fff;
+            color: #1F1F1F;
+            border-color: #1F1F1F;
             border-radius: 0;
         }
         #bookmark-button,
@@ -1210,9 +1211,8 @@
         <!-- 右邊：主 webview 區 -->
         <div id="webview-container">
             <webview id="webview-main"
-                     src="./src/home.html"
                      preload="./src/preload-home.js"
-                     allowpopups="false"
+                     allowpopups
                      webpreferences="allowRunningInsecureContent=true,nodeIntegration=false">
             </webview>
 
